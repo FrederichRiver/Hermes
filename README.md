@@ -1,2 +1,3 @@
 # Hermes
-A project about dictionary
+
+A project of quantitive trading.
