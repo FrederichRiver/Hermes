@@ -1,0 +1,41 @@
+APScheduler>=3.10.0
+# QTS Core Dependencies
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Web framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+
+# Configuration & validation
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Scheduling
+croniter>=1.4.0
+
+# Logging
+loguru>=0.7.0
+
+# File system watcher for hot config reload
+watchdog>=2.2.1
+
+# HTTP clients (for data agent later)
+aiohttp>=3.8.0
+httpx>=0.24.0
+beautifulsoup4>=4.12.0
+tenacity>=8.2.0
+
+# Database (optional, for later)
+sqlalchemy>=2.0.0
+aiosqlite>=0.19.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+
+# Type checking
+mypy>=1.5.0

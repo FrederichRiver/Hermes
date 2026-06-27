@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "timezone": "UTC",
+  "hot_reload": true,
+  "reload_debounce_seconds": 1.0,
+  "defaults": {
+    "max_instances": 1,
+    "misfire_grace_time": 60,
+    "coalesce": true,
+    "replace_existing": true
+  },
+  "jobs": [
+    {
+      "id": "fetch_sse_stock_info",
+      "name": "Fetch Shanghai Exchange Codes and Info to DB",
+      "func": "qts.agents.data_agent:fetch_sse_stock_info",
+      "enabled": true,
+      "trigger": {
+        "type": "cron",
+        "cron": "0 3 * * 1-5"
+      },
+      "args": [],
+      "kwargs": {}
+    },
+    {
+      "id": "fetch_szse_codes",
+      "name": "Fetch Shenzhen Exchange Codes",
+      "func": "qts.agents.data_agent:fetch_szse_codes",
+      "enabled": true,
+      "trigger": {
+        "type": "cron",
+        "cron": "0 3 * * 1-5"
+      },
+      "args": [],
+      "kwargs": {}
+    },
+    {
+      "id": "example_interval_job",
+      "name": "Example Interval Job (5 minutes)",
+      "func": "qts.agents.data_agent:fetch_sse_codes",
+      "enabled": false,
+      "trigger": {
+        "type": "interval",
+        "interval": {
+          "minutes": 5
+        }
+      },
+      "args": [],
+      "kwargs": {},
+      "max_instances": 1
+    }
+  ]
+}

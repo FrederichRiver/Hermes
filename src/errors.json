@@ -1,0 +1,28 @@
+{
+  "errors": [
+    {
+      "code": "DATA_AGENT.FETCH_FAIL.0001",
+      "description": "抓取超时/连接失败"
+    },
+    {
+      "code": "DATA_AGENT.CLEAN_INVALID.0002",
+      "description": "数据清洗异常：无效字段"
+    },
+    {
+      "code": "EXECUTION_ORDER.REJECTED.1001",
+      "description": "订单被风控拒绝"
+    },
+    {
+      "code": "RISK_POSITION.OVER_LIMIT.2001",
+      "description": "仓位超限"
+    },
+    {
+      "code": "STRATEGY_SIGNAL.EMPTY.3001",
+      "description": "策略未生成信号"
+    },
+    {
+      "code": "BACKTEST.NO_DATA.4001",
+      "description": "回测缺失历史数据"
+    }
+  ]
+}
