@@ -1,0 +1,32 @@
+services:
+  apache_django:
+    build: .
+    image: apache_django:v1.0
+    container_name: apache_django_server
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      # 使用命名卷 web_data 挂载为容器内的工作目录 /var/www/html
+      - web_data:/var/www/html
+      # 外部挂载 Apache site 配置到 Debian/Ubuntu 的 sites-available（覆盖镜像内站点）
+      - ./apache-django.conf:/etc/apache2/sites-available/000-default.conf:ro
+    env_file:
+      - .env
+    networks:
+      - mysql_network
+
+# 使用外部网络
+networks:
+  mysql_network:
+    external: true
+
+volumes:
+  web_data:
+    name: web_data
+    driver: local
+    driver_opts:
+      type: none
+      device: /opt/www
+      o: bind
+  
