@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  ubuntu_dev:
+    build: .
+    container_name: ubuntu_dev_env
+    # 保持容器持续运行
+    command: tail -f /dev/null
+    volumes:
+      # 将宿主机的项目目录挂载到容器内，方便开发
+      - ./workspace:/workspace
+    # 引入外部环境变量
+    env_file:
+      - .env
+    # 若需使用宿主机的 NVDIA 显卡，需开启 deploy resources (需安装 NVIDIA Container Toolkit)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - dev_network
+
+networks:
+  dev_network:
+    external: true
