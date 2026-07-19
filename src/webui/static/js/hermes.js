@@ -201,9 +201,17 @@ async function loadQuotes() {
 // ==========================================================================
 async function loadPositions() {
   try {
-    const positions = await apiGet('/positions/');
+    const accountSelect = document.getElementById('account-select');
+    const accountId = accountSelect && accountSelect.value ? accountSelect.value : '';
+    const query = accountId ? `?account=${accountId}` : '';
+    const positions = await apiGet(`/positions/${query}`);
     document.getElementById('position-count').textContent = `共 ${positions.length} 只标的`;
     const tbody = document.getElementById('position-tbody');
+    if (!positions || positions.length === 0) {
+      tbody.innerHTML = `<tr class="position-empty"><td colspan="8" class="text-muted">暂无持仓</td></tr>`;
+      return;
+    }
+
     tbody.innerHTML = positions.map(pos => {
       const pnl = parseFloat(pos.unrealized_pnl);
       const pnlPct = parseFloat(pos.unrealized_pnl_pct);
@@ -357,6 +365,7 @@ function loadAll() {
 // 页面加载完成后执行
 document.addEventListener('DOMContentLoaded', () => {
   loadAll();
+  loadAccounts();
 
   // 每 30 秒自动刷新数据
   setInterval(() => {
@@ -376,3 +385,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+
+// ==========================================================================
+// 账户列表用于筛选持仓
+// ==========================================================================
+async function loadAccounts() {
+  try {
+    const accounts = await apiGet('/accounts/');
+    const sel = document.getElementById('account-select');
+    if (!sel) return;
+    sel.innerHTML = `<option value="">全部账户</option>` + accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+    // when changed, reload positions
+    sel.addEventListener('change', () => loadPositions());
+    // trigger initial positions load with first account
+    // default to '全部账户' (empty value) to load all positions
+    sel.value = '';
+    loadPositions();
+  } catch (err) {
+    console.error('loadAccounts failed:', err);
+  }
+}

@@ -3,6 +3,7 @@ Django REST Framework Views
 为前端 Dashboard 各模块提供 REST API 接口
 """
 from rest_framework import generics, status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Sum
@@ -68,8 +69,16 @@ class PositionListAPI(generics.ListAPIView):
     GET /api/v1/positions/
     返回当前持仓列表
     """
-    queryset = Position.objects.all().select_related('account')
+    # order by market value descending by default
+    queryset = Position.objects.all().select_related('account').order_by('-market_value')
     serializer_class = PositionSerializer
+    
+    class StandardResultsSetPagination(PageNumberPagination):
+        page_size = 20
+        page_size_query_param = 'page_size'
+        max_page_size = 100
+
+    pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
         qs = super().get_queryset()

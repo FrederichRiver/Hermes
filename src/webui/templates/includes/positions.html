@@ -1,7 +1,10 @@
 <div class="panel" id="position-panel" data-module-part="positions-table">
     <div class="panel-header">
         <h3 class="panel-title">当前持仓</h3>
-        <span class="text-muted" id="position-count">共 -- 只标的</span>
+        <div class="panel-controls">
+            <select id="account-select" class="small-select"></select>
+            <span class="text-muted" id="position-count">共 -- 只标的</span>
+        </div>
     </div>
     <div class="table-responsive">
         <table class="data-table" id="position-table">
@@ -18,9 +21,7 @@
                 </tr>
             </thead>
             <tbody id="position-tbody">
-                <tr><td colspan="8"><div class="skeleton-line w-full h-10"></div></td></tr>
-                <tr><td colspan="8"><div class="skeleton-line w-full h-10"></div></td></tr>
-                <tr><td colspan="8"><div class="skeleton-line w-full h-10"></div></td></tr>
+                <tr class="position-empty"><td colspan="8" class="text-muted">正在加载持仓数据…</td></tr>
             </tbody>
         </table>
     </div>
