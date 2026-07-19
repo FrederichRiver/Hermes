@@ -23,14 +23,9 @@ async function apiGet(endpoint) {
 function updateClock() {
   const now = new Date();
   const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false });
-  const dateStr = now.toLocaleString('zh-CN', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-  });
-  const clock = document.getElementById('clock');
+  const dateOnly = now.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const dateDisplay = document.getElementById('date-display');
-  if (clock) clock.textContent = timeStr;
-  if (dateDisplay) dateDisplay.textContent = dateStr;
+  if (dateDisplay) dateDisplay.innerHTML = `${dateOnly} <span class="time-display">${timeStr}</span>`;
 }
 
 setInterval(updateClock, 1000);
