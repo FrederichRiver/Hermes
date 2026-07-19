@@ -1,1 +1,0 @@
-# Hermes Quant Trading System

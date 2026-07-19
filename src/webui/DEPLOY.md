@@ -16,7 +16,8 @@
 
 ```
 backend/
-├── hermes/                 # Django 项目配置
+├── application/            # Django 项目配置
+```
 │   ├── settings.py         # 数据库 / 静态文件 / DRF 配置
 │   ├── urls.py             # 路由（API + 首页）
 │   └── wsgi.py
@@ -60,13 +61,15 @@ pip install -r requirements.txt
 确保 MySQL 已安装并运行，创建数据库：
 
 ```sql
-CREATE DATABASE hermes_quant CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'hermes_user'@'localhost' IDENTIFIED BY 'hermes_password';
-GRANT ALL PRIVILEGES ON hermes_quant.* TO 'hermes_user'@'localhost';
+CREATE DATABASE website CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- 如果希望 `www` 用户无密码（不安全，仅限受信网络/容器内）：
+-- CREATE USER 'www'@'localhost' IDENTIFIED WITH mysql_native_password BY '';
+-- GRANT ALL PRIVILEGES ON website.* TO 'www'@'localhost';
+-- 推荐方式（更安全）：创建带密码的用户并在部署时通过环境变量 `DB_PASSWORD` 提供密码。
 FLUSH PRIVILEGES;
 ```
 
-如需修改数据库配置，编辑 `backend/hermes/settings.py` 中的 `DATABASES`。
+如需修改数据库配置，编辑 `backend/application/settings.py` 中的 `DATABASES`。
 
 ### 3. 数据库迁移
 
@@ -95,6 +98,28 @@ cd backend
 python manage.py runserver
 ```
 
+## 使用环境变量（推荐）
+
+把 `.env.example` 复制为 `.env` 并填入真实值，或在宿主/容器中导出环境变量。例如：
+
+Linux / macOS:
+```bash
+export SECRET_KEY='你的_secret_key'
+export DB_PASSWORD='你的_db_password'   # 可留空以匹配无密码的 www 用户
+export DB_HOST=localhost
+export DB_PORT=3306
+```
+
+Windows PowerShell:
+```powershell
+$env:SECRET_KEY = '你的_secret_key'
+$env:DB_PASSWORD = '你的_db_password'
+$env:DB_HOST = 'localhost'
+$env:DB_PORT = '3306'
+```
+
+在使用 systemd / supervisor / Docker 部署时，把这些环境变量写入服务单元或容器环境。不要把真实 `SECRET_KEY` 或明文密码提交到代码仓库。
+
 访问地址：
 - **Dashboard 界面**：`http://127.0.0.1:8000/`
 - **Django Admin**：`http://127.0.0.1:8000/admin/`
@@ -114,7 +139,7 @@ python manage.py collectstatic --noinput
 ### 使用 Gunicorn 启动
 
 ```bash
-gunicorn hermes.wsgi:application --bind 0.0.0.0:8000 --workers 4
+gunicorn application.wsgi:application --bind 0.0.0.0:8000 --workers 4
 ```
 
 ### Nginx 反向代理示例

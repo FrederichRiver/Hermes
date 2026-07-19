@@ -12,7 +12,7 @@ Django Seed Script —— 初始化示例数据
 import os
 import django
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hermes.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'application.settings')
 django.setup()
 
 from apps.core.models import Account, Position, MarketQuote, TradingSignal, RiskMetric, NetValuePoint
