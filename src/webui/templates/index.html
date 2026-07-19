@@ -13,91 +13,17 @@
 <body>
     <div class="app">
         <!-- 侧边导航 -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-logo">
-                <div class="logo-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 3v18h18"/>
-                        <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
-                    </svg>
-                </div>
-                <div class="logo-text">
-                    <span class="logo-title">HERMES</span>
-                    <span class="logo-subtitle">Quant Trading</span>
-                </div>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" data-tab="dashboard">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                    <span>Dashboard</span>
-                </a>
-                <a href="#" class="nav-item" data-tab="market">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                    <span>行情监控</span>
-                </a>
-                <a href="#" class="nav-item" data-tab="positions">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
-                    <span>持仓管理</span>
-                </a>
-                <a href="#" class="nav-item" data-tab="strategy">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2"/><path d="M8 12h8"/><path d="M8 12l4-4"/><path d="M8 12l4 4"/></svg>
-                    <span>策略中心</span>
-                </a>
-                <a href="#" class="nav-item" data-tab="risk">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    <span>风控监控</span>
-                    <span class="nav-badge">LIVE</span>
-                </a>
-                <a href="#" class="nav-item" data-tab="backtest">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    <span>回测系统</span>
-                </a>
-                <a href="#" class="nav-item" data-tab="data">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
-                    <span>数据中心</span>
-                </a>
-                <a href="#" class="nav-item" data-tab="logs">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                    <span>系统日志</span>
-                </a>
-            </nav>
-            <div class="sidebar-footer">
-                <a href="#" class="nav-item">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9"/></svg>
-                    <span>系统设置</span>
-                </a>
-            </div>
-        </aside>
+        {% include 'includes/sidebar.html' %}
 
         <!-- 主内容区 -->
         <div class="main">
             <!-- 顶部栏 -->
-            <header class="header">
-                <div class="breadcrumb">
-                    <span class="breadcrumb-active">Dashboard</span>
-                    <span>/</span>
-                    <span>总览面板</span>
-                </div>
-                <div class="header-right">
-                    <div class="header-item">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                        <span class="text-muted">A股交易中</span>
-                        <span class="time-display" id="clock">--:--:--</span>
-                    </div>
-                    <div class="header-item text-muted">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        <span id="date-display">----/--/-- --:--:--</span>
-                    </div>
-                    <div class="status-badge status-online">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                        <span>系统正常</span>
-                    </div>
-                </div>
-            </header>
+            {% include 'includes/header.html' %}
 
             <!-- Dashboard 内容 -->
             <main class="content" id="content">
-                <!-- 统计卡片 -->
+                <!-- Module: 统计卡片 (Stat Cards) -->
+                <section class="module" data-module="stat-cards" id="module-stat-cards">
                 <div class="stat-grid" id="stat-cards">
                     <div class="panel stat-card skeleton">
                         <div class="skeleton-line w-16 mb-3"></div>
@@ -120,11 +46,13 @@
                         <div class="skeleton-line w-20"></div>
                     </div>
                 </div>
+                </section>
 
-                <!-- 图表 + 行情 -->
+                <!-- Module: 图表 + 行情 (Charts & Market Quotes) -->
+                <section class="module" data-module="charts-market" id="module-charts-market">
                 <div class="grid-row">
                     <div class="grid-col-2">
-                        <div class="panel chart-panel">
+                        <div class="panel chart-panel" data-module-part="netvalue-chart">
                             <div class="panel-header">
                                 <div>
                                     <h3 class="panel-title">净值曲线</h3>
@@ -141,7 +69,7 @@
                         </div>
                     </div>
                     <div class="grid-col-1">
-                        <div class="panel" id="market-quotes">
+                        <div class="panel" id="market-quotes" data-module-part="market-quotes">
                             <div class="panel-header">
                                 <h3 class="panel-title">自选行情</h3>
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -155,40 +83,18 @@
                         </div>
                     </div>
                 </div>
+                </section>
 
-                <!-- 持仓表格 -->
-                <div class="panel" id="position-panel">
-                    <div class="panel-header">
-                        <h3 class="panel-title">当前持仓</h3>
-                        <span class="text-muted" id="position-count">共 -- 只标的</span>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="data-table" id="position-table">
-                            <thead>
-                                <tr>
-                                    <th>代码</th>
-                                    <th>名称</th>
-                                    <th class="text-right">持仓</th>
-                                    <th class="text-right">均价</th>
-                                    <th class="text-right">现价</th>
-                                    <th class="text-right">盈亏</th>
-                                    <th class="text-right">市值</th>
-                                    <th class="text-right">权重</th>
-                                </tr>
-                            </thead>
-                            <tbody id="position-tbody">
-                                <tr><td colspan="8"><div class="skeleton-line w-full h-10"></div></td></tr>
-                                <tr><td colspan="8"><div class="skeleton-line w-full h-10"></div></td></tr>
-                                <tr><td colspan="8"><div class="skeleton-line w-full h-10"></div></td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <!-- Module: 持仓表格 (Positions) -->
+                <section class="module" data-module="positions" id="module-positions">
+                {% include 'includes/positions.html' %}
+                </section>
 
-                <!-- 信号 + 风控 -->
+                <!-- Module: 信号 + 风控 (Signals & Risk) -->
+                <section class="module" data-module="signals-risk" id="module-signals-risk">
                 <div class="grid-row">
                     <div class="grid-col-1">
-                        <div class="panel" id="signal-panel">
+                        <div class="panel" id="signal-panel" data-module-part="signals">
                             <div class="panel-header">
                                 <h3 class="panel-title">交易信号 / 系统日志</h3>
                             </div>
@@ -200,7 +106,7 @@
                         </div>
                     </div>
                     <div class="grid-col-1">
-                        <div class="panel" id="risk-panel">
+                        <div class="panel" id="risk-panel" data-module-part="risk">
                             <div class="panel-header">
                                 <div class="flex items-center gap-2">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -219,6 +125,7 @@
                         </div>
                     </div>
                 </div>
+                </section>
             </main>
         </div>
     </div>

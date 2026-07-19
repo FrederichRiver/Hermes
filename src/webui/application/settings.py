@@ -62,7 +62,7 @@ DATABASES = {
         'NAME': os.environ.get('DB_NAME', 'website'),
         'USER': os.environ.get('DB_USER', 'www'),
         'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'HOST': os.environ.get('DB_HOST', '172.18.0.2'),
         'PORT': os.environ.get('DB_PORT', '3306'),
         'OPTIONS': {
             'charset': 'utf8mb4',

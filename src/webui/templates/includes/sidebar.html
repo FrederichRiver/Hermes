@@ -1,0 +1,53 @@
+{% load static %}
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+        <div class="logo-icon">
+            <img src="{% static 'images/logo.svg' %}" width="20" height="20" alt="HERMES">
+        </div>
+        <div class="logo-text">
+            <span class="logo-title">HERMES</span>
+            <span class="logo-subtitle">Quant Trading</span>
+        </div>
+    </div>
+    <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-tab="dashboard">
+            <img src="{% static 'images/icon-dashboard.svg' %}" width="18" height="18" alt="dashboard">
+            <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="market">
+            <img src="{% static 'images/icon-market.svg' %}" width="18" height="18" alt="market">
+            <span>行情监控</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="positions">
+            <img src="{% static 'images/icon-positions.svg' %}" width="18" height="18" alt="positions">
+            <span>持仓管理</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="strategy">
+            <img src="{% static 'images/icon-strategy.svg' %}" width="18" height="18" alt="strategy">
+            <span>策略中心</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="risk">
+            <img src="{% static 'images/icon-risk.svg' %}" width="18" height="18" alt="risk">
+            <span>风控监控</span>
+            <span class="nav-badge">LIVE</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="backtest">
+            <img src="{% static 'images/icon-backtest.svg' %}" width="18" height="18" alt="backtest">
+            <span>回测系统</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="data">
+            <img src="{% static 'images/icon-data.svg' %}" width="18" height="18" alt="data">
+            <span>数据中心</span>
+        </a>
+        <a href="#" class="nav-item" data-tab="logs">
+            <img src="{% static 'images/icon-logs.svg' %}" width="18" height="18" alt="logs">
+            <span>系统日志</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="#" class="nav-item">
+            <img src="{% static 'images/icon-settings.svg' %}" width="18" height="18" alt="settings">
+            <span>系统设置</span>
+        </a>
+    </div>
+</aside>

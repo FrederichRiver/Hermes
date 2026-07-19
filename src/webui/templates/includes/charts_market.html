@@ -1,0 +1,33 @@
+<div class="grid-row">
+    <div class="grid-col-2">
+        <div class="panel chart-panel" data-module-part="netvalue-chart">
+            <div class="panel-header">
+                <div>
+                    <h3 class="panel-title">净值曲线</h3>
+                    <p class="panel-subtitle">策略净值 vs 基准指数（日内）</p>
+                </div>
+                <div class="chart-legend">
+                    <span class="legend-item"><span class="legend-dot" style="background:#06b6d4"></span>策略净值</span>
+                    <span class="legend-item"><span class="legend-dot" style="background:#64748b"></span>基准指数</span>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="netValueChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="grid-col-1">
+        <div class="panel" id="market-quotes" data-module-part="market-quotes">
+            <div class="panel-header">
+                <h3 class="panel-title">自选行情</h3>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </div>
+            <div class="quote-list" id="quote-list">
+                <div class="quote-item skeleton"><div class="skeleton-line w-full h-8"></div></div>
+                <div class="quote-item skeleton"><div class="skeleton-line w-full h-8"></div></div>
+                <div class="quote-item skeleton"><div class="skeleton-line w-full h-8"></div></div>
+                <div class="quote-item skeleton"><div class="skeleton-line w-full h-8"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
