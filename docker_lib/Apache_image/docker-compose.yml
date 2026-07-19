@@ -1,7 +1,7 @@
 services:
   apache_django:
     build: .
-    image: apache_django:v1.0
+    image: apache_django:v1.1
     container_name: apache_django_server
     restart: unless-stopped
     ports:
@@ -11,6 +11,9 @@ services:
       - web_data:/var/www/html
       # 外部挂载 Apache site 配置到 Debian/Ubuntu 的 sites-available（覆盖镜像内站点）
       - ./apache-django.conf:/etc/apache2/sites-available/000-default.conf:ro
+    environment:
+      - DJANGO_STATIC_ROOT=/var/www/html/static
+      - DJANGO_MEDIA_ROOT=/var/www/html/media
     env_file:
       - .env
     networks:

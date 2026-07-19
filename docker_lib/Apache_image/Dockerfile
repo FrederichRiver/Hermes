@@ -36,8 +36,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 WORKDIR /var/www/html
 
 # 复制项目代码到镜像
-COPY ./www/ /var/www/html/
-COPY ./www/requirements.txt /tmp/requirements.txt
+COPY ./application/ /var/www/html/
+COPY ./application/requirements.txt /tmp/requirements.txt
 
 # 为 Python 环境创建一个虚拟环境并使用该 venv 安装依赖
 RUN python3 -m venv /opt/venv
