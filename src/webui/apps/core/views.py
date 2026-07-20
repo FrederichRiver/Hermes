@@ -14,6 +14,9 @@ from .serializers import (
     SystemLogSerializer,
 )
 
+from django.shortcuts import render
+from django.views import View
+
 
 class DashboardStatsAPI(APIView):
     """
@@ -185,3 +188,52 @@ class AccountListAPI(generics.ListAPIView):
     """
     queryset = Account.objects.filter(is_active=True)
     serializer_class = AccountSerializer
+
+
+class DashboardView(View):
+    """Render the index dashboard with server-side stat cards"""
+    template_name = 'index.html'
+
+    def get(self, request, *args, **kwargs):
+        account = Account.objects.filter(is_active=True).first()
+        if not account:
+            stats = None
+        else:
+            total_asset_change = float(account.total_return_pct)
+            holding_pnl_change = float(account.holding_pnl) / float(account.total_asset) * 100 if account.total_asset else 0
+            stats = {
+                'total_asset': {
+                    'title': '总资产',
+                    'value': f"¥ {float(account.total_asset):,.2f}",
+                    'change': f"{total_asset_change:+.2f}%",
+                    'change_type': 'up' if total_asset_change >= 0 else 'down',
+                    'subtitle': '较昨日',
+                    'icon_html': '',
+                },
+                'available_cash': {
+                    'title': '可用资金',
+                    'value': f"¥ {float(account.available_cash):,.2f}",
+                    'change': f"{float(account.available_cash) / float(account.total_asset) * 100:.2f}%",
+                    'change_type': 'neutral',
+                    'subtitle': '资金占比',
+                    'icon_html': '',
+                },
+                'holding_pnl': {
+                    'title': '持仓盈亏',
+                    'value': f"¥ {float(account.holding_pnl):+,.2f}",
+                    'change': f"{holding_pnl_change:+.2f}%",
+                    'change_type': 'up' if account.holding_pnl >= 0 else 'down',
+                    'subtitle': '累计浮动',
+                    'icon_html': '',
+                },
+                'capital_utilization': {
+                    'title': '资金利用率',
+                    'value': f"{float(account.capital_utilization):.1f}%",
+                    'change': f"{float(account.capital_utilization) - 65:.1f}%",
+                    'change_type': 'neutral',
+                    'subtitle': '目标≤80%',
+                    'icon_html': '',
+                },
+            }
+
+        return render(request, self.template_name, {'stats': stats})

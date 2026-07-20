@@ -4,6 +4,7 @@ Application URL Configuration
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
+from apps.core.views import DashboardView
 
 urlpatterns = [
     path('admin/', admin.site.urls),

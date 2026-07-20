@@ -1,22 +1,38 @@
 <div class="stat-grid" id="stat-cards">
-    <div class="panel stat-card skeleton">
-        <div class="skeleton-line w-16 mb-3"></div>
-        <div class="skeleton-line w-32 h-6 mb-2"></div>
-        <div class="skeleton-line w-20"></div>
-    </div>
-    <div class="panel stat-card skeleton">
-        <div class="skeleton-line w-16 mb-3"></div>
-        <div class="skeleton-line w-32 h-6 mb-2"></div>
-        <div class="skeleton-line w-20"></div>
-    </div>
-    <div class="panel stat-card skeleton">
-        <div class="skeleton-line w-16 mb-3"></div>
-        <div class="skeleton-line w-32 h-6 mb-2"></div>
-        <div class="skeleton-line w-20"></div>
-    </div>
-    <div class="panel stat-card skeleton">
-        <div class="skeleton-line w-16 mb-3"></div>
-        <div class="skeleton-line w-32 h-6 mb-2"></div>
-        <div class="skeleton-line w-20"></div>
-    </div>
+    {% if stats %}
+        {% for key, card in stats.items %}
+            <div class="panel stat-card">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="stat-label">{{ card.title }}</div>
+                    <div class="text-muted">{{ card.icon_html|default:''|safe }}</div>
+                </div>
+                <div class="stat-value">{{ card.value }}</div>
+                <div class="stat-change {{ card.change_type }}">
+                    <span>{{ card.change }}</span>
+                    <span class="stat-subtitle">{{ card.subtitle }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="panel stat-card skeleton">
+            <div class="skeleton-line w-16 mb-3"></div>
+            <div class="skeleton-line w-32 h-6 mb-2"></div>
+            <div class="skeleton-line w-20"></div>
+        </div>
+        <div class="panel stat-card skeleton">
+            <div class="skeleton-line w-16 mb-3"></div>
+            <div class="skeleton-line w-32 h-6 mb-2"></div>
+            <div class="skeleton-line w-20"></div>
+        </div>
+        <div class="panel stat-card skeleton">
+            <div class="skeleton-line w-16 mb-3"></div>
+            <div class="skeleton-line w-32 h-6 mb-2"></div>
+            <div class="skeleton-line w-20"></div>
+        </div>
+        <div class="panel stat-card skeleton">
+            <div class="skeleton-line w-16 mb-3"></div>
+            <div class="skeleton-line w-32 h-6 mb-2"></div>
+            <div class="skeleton-line w-20"></div>
+        </div>
+    {% endif %}
 </div>

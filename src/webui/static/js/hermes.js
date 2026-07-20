@@ -201,18 +201,53 @@ async function loadQuotes() {
 // ==========================================================================
 async function loadPositions() {
   try {
+    // support pagination: if positionsApiState.next is set, load that, otherwise start from page 1
     const accountSelect = document.getElementById('account-select');
     const accountId = accountSelect && accountSelect.value ? accountSelect.value : '';
-    const query = accountId ? `?account=${accountId}` : '';
-    const positions = await apiGet(`/positions/${query}`);
-    document.getElementById('position-count').textContent = `共 ${positions.length} 只标的`;
+    const baseQuery = accountId ? `?account=${accountId}` : '';
+    const state = window.positionsApiState || { next: null };
+
+    // if account changed or no state yet, reset to first page
+    if (!window.positionsApiState || window.positionsApiState.accountId !== accountId) {
+      window.positionsApiState = { accountId: accountId, next: `/positions/${baseQuery}`.replace('/positions/?', '/positions/?') };
+    }
+
+    const fetchUrl = window.positionsApiState.next || `/positions/${baseQuery}`;
+    // normalize endpoint path (apiGet prepends API_BASE)
+    const raw = await apiGet(fetchUrl);
+
     const tbody = document.getElementById('position-tbody');
-    if (!positions || positions.length === 0) {
+    const loadMoreBtn = document.getElementById('position-load-more');
+
+    // DRF pagination returns {count, next, previous, results}
+    let items = [];
+    if (raw && raw.results !== undefined) {
+      items = raw.results;
+      // update next link (relative)
+      const nextUrl = raw.next;
+      if (nextUrl) {
+        // convert absolute next to relative endpoint path expected by apiGet
+        const u = new URL(nextUrl, window.location.href);
+        window.positionsApiState.next = u.pathname + u.search;
+      } else {
+        window.positionsApiState.next = null;
+      }
+      document.getElementById('position-count').textContent = `共 ${raw.count} 只标的`;
+    } else {
+      items = raw || [];
+      window.positionsApiState.next = null;
+      document.getElementById('position-count').textContent = `共 ${items.length} 只标的`;
+    }
+
+    if (!items || items.length === 0) {
       tbody.innerHTML = `<tr class="position-empty"><td colspan="8" class="text-muted">暂无持仓</td></tr>`;
+      if (loadMoreBtn) loadMoreBtn.style.display = 'none';
       return;
     }
 
-    tbody.innerHTML = positions.map(pos => {
+    // if this is first page (tbody empty or contains loading), replace; otherwise append
+    const isFirstPage = !tbody.querySelector('tr:not(.position-empty)');
+    const rowsHtml = items.map(pos => {
       const pnl = parseFloat(pos.unrealized_pnl);
       const pnlPct = parseFloat(pos.unrealized_pnl_pct);
       const pnlClass = pnl >= 0 ? 'td-up' : 'td-down';
@@ -240,6 +275,18 @@ async function loadPositions() {
         </tr>
       `;
     }).join('');
+
+    if (isFirstPage) tbody.innerHTML = rowsHtml; else tbody.insertAdjacentHTML('beforeend', rowsHtml);
+
+    // show or hide load more button
+    if (window.positionsApiState.next) {
+      if (loadMoreBtn) {
+        loadMoreBtn.style.display = 'inline-block';
+        loadMoreBtn.onclick = () => loadPositions();
+      }
+    } else {
+      if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+    }
   } catch (err) {
     console.error('loadPositions failed:', err);
   }
