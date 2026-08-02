@@ -14,6 +14,14 @@ LABEL org.opencontainers.image.licenses="MIT"
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# Ensure runtime directories exist and have correct ownership/permissions
+# - /var/lib/mysql is the data directory (declared as VOLUME below)
+# - /var/run/mysqld is used for the MySQL socket
+# - /etc/mysql/conf.d can hold mounted configuration snippets
+RUN mkdir -p /var/run/mysqld /etc/mysql/conf.d \
+ && chown -R mysql:mysql /var/lib/mysql /var/run/mysqld /etc/mysql/conf.d \
+ && chmod 750 /var/run/mysqld
+
 # Expose MySQL port and declare data volume
 EXPOSE 3306
 VOLUME ["/var/lib/mysql"]

@@ -3,16 +3,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: mysql:8.0
+    image: mysql_image:v1.0
     container_name: mysql_server
     restart: unless-stopped
+    networks:
+      mysql_network:
+        ipv4_address: 172.18.0.2
     env_file:
       - ./.env
     ports:
       - "3306:3306"
     volumes:
       # Use a named Docker volume to avoid host permission issues on Windows.
-      - ${MYSQL_DATA_DIR}:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
       - ./my.cnf:/etc/mysql/conf.d/my.cnf:ro
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
@@ -21,7 +24,20 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+volumes:
+  mysql_data:
+    name: mysql_data
+    driver: local
+    driver_opts:
+      type: none
+      device: /mnt/Milano/mysql_data
+      o: bind
 
 networks:
   mysql_network:
+    name: mysql_network
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
+          gateway: 172.18.0.1
