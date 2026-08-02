@@ -6,6 +6,9 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV TZ=Asia/Shanghai
 
+RUN sed -i 's|http://archive.ubuntu.com/ubuntu/|http://mirrors.aliyun.com/ubuntu/|g' /etc/apt/sources.list.d/ubuntu.sources \
+    && sed -i 's|http://security.ubuntu.com/ubuntu/|http://mirrors.aliyun.com/ubuntu/|g' /etc/apt/sources.list.d/ubuntu.sources
+
 # 安装 Apache2、Python 及依赖（Ubuntu 布局：/etc/apache2）
 RUN apt-get update && apt-get install -y \
     apache2 \
@@ -18,7 +21,6 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     pkg-config \
     tzdata \
-    whitenoise \
     && rm -rf /var/lib/apt/lists/*
 
 # Ensure Apache MPM is available and enable a suitable MPM (mpm_event) at build time.

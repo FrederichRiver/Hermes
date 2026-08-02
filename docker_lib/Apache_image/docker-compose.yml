@@ -1,6 +1,8 @@
 services:
   apache_django:
-    build: .
+    build:
+      context: .
+      network: host
     image: apache_django:v1.1
     container_name: apache_django_server
     restart: unless-stopped
@@ -17,7 +19,8 @@ services:
     env_file:
       - .env
     networks:
-      - mysql_network
+      mysql_network:
+        ipv4_address: 172.18.0.3
 
 # 使用外部网络
 networks:
@@ -30,6 +33,6 @@ volumes:
     driver: local
     driver_opts:
       type: none
-      device: /opt/www
+      device: /mnt/Milano/www
       o: bind
   
