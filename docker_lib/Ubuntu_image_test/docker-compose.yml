@@ -1,0 +1,32 @@
+services:
+  ubuntu_test:
+    build: 
+      context: .
+      network: host
+    image: ubuntu_image
+    restart: no
+    container_name: ubuntu_server_test
+    volumes:
+      - test_space:/opt/application/src
+    dns:
+      - 8.8.8.8
+      - 114.114.114.114
+      - 172.18.0.1
+    networks:
+      mysql_network:
+        ipv4_address: 172.18.0.6
+    # 引入外部环境变量
+    env_file:
+      - .env
+
+networks:
+  mysql_network:
+    external: true
+
+volumes:
+  test_space:
+    driver: local
+    driver_opts:
+      type: none
+      device: /mnt/Milano/test
+      o: bind
