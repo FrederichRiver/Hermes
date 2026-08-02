@@ -19,8 +19,8 @@ class DataAgent:
 
 
 # Module-level synchronous scraper functions for scheduler to call
-from qts.utils.http_client import SimpleHttpClient
-from qts.utils.parser import (
+from agents.http_connect import HttpConnect
+from utils.parser import (
     extract_codes_from_text,
     parse_sse_html,
     parse_szse_html,
@@ -28,8 +28,9 @@ from qts.utils.parser import (
     parse_szse_json,
 )
 
-logger = logging.getLogger("qts.data_agent")
-_client = SimpleHttpClient(timeout=15, retries=3, backoff=1.0, min_interval=0.05)
+logger = logging.getLogger("src.data_agent")
+# default http client for site scrapers
+_client = HttpConnect(base_headers={"User-Agent": "Hermes-DataAgent/1.0"}, timeout=15.0, max_retries=3, backoff_factor=0.5)
 
 # Best-effort list pages for exchanges (may need adjustment if site structure changes)
 _SSE_LIST_URL = "http://www.sse.com.cn/assortment/stock/list/share/"
@@ -81,7 +82,7 @@ def _fetch_and_write(url: str, prefix: str, output_path: str) -> int:
         raise
 
 
-def fetch_sse_codes(output_path: str = "qts/data/codes/shanghai.txt") -> int:
+def fetch_sse_codes(output_path: str = "src/data/codes/shanghai.txt") -> int:
     """Fetch codes from Shanghai Stock Exchange and save to `output_path`.
 
     Returns number of codes written.
@@ -101,7 +102,7 @@ def fetch_sse_codes(output_path: str = "qts/data/codes/shanghai.txt") -> int:
     return _fetch_and_write(_SSE_LIST_URL, "SH", output_path)
 
 
-def fetch_szse_codes(output_path: str = "qts/data/codes/shenzhen.txt") -> int:
+def fetch_szse_codes(output_path: str = "src/data/codes/shenzhen.txt") -> int:
     """Fetch codes from Shenzhen Stock Exchange and save to `output_path`.
 
     Returns number of codes written.

@@ -1,0 +1,24 @@
+{
+  "tasks": [
+    {
+      "uid": "fetch-sse-codes",
+      "name": "Fetch Shanghai Stock Exchange Codes",
+      "enabled": false,
+      "type": "cron",
+      "cron": "0 3 * * 1-5",
+      "callable": "agents.data_agent:fetch_sse_codes",
+      "args": [],
+      "kwargs": {}
+    },
+    {
+      "uid": "one-time-data-refresh",
+      "name": "One-Time Data Refresh",
+      "enabled": false,
+      "type": "date",
+      "run_at": "2030-01-01T09:00:00+00:00",
+      "callable": "agents.data_agent:fetch_sse_codes",
+      "args": [],
+      "kwargs": {}
+    }
+  ]
+}

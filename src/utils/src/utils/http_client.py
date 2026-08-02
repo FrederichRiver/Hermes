@@ -16,7 +16,7 @@ except Exception:
     import urllib.parse as _urllib_parse
     _HAS_HTTPX = False
 
-logger = logging.getLogger("qts.http_client")
+logger = logging.getLogger("src.http_client")
 
 
 class SimpleHttpClient:

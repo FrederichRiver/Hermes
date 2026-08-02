@@ -1,4 +1,4 @@
-# qts.core - 核心数据模型和常量定义
+# src.core - 核心数据模型和常量定�?
 
 from .event import Event, EventType
 from .signal import Signal, SignalType
