@@ -1,28 +1,32 @@
-version: '3.8'
-
 services:
   ubuntu_dev:
-    build: .
-    container_name: ubuntu_dev_env
-    # 保持容器持续运行
-    command: tail -f /dev/null
+    build: 
+      context: .
+      network: host
+    image: ubuntu_image
+    restart: no
+    container_name: ubuntu_server_1
     volumes:
-      # 将宿主机的项目目录挂载到容器内，方便开发
-      - ./workspace:/workspace
+      - /mnt/Milano/src_space:/opt/application/src
+    dns:
+      - 8.8.8.8
+      - 114.114.114.114
+      - 172.18.0.1
+    networks:
+      mysql_network:
+        ipv4_address: 172.18.0.5
     # 引入外部环境变量
     env_file:
       - .env
-    # 若需使用宿主机的 NVDIA 显卡，需开启 deploy resources (需安装 NVIDIA Container Toolkit)
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-    networks:
-      - dev_network
 
 networks:
-  dev_network:
+  mysql_network:
     external: true
+
+volumes:
+  src_space:
+    driver: local
+    driver_opts:
+      type: none
+      device: /mnt/Milano/src_space
+      o: bind

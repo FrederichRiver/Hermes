@@ -1,0 +1,15 @@
+FROM ubuntu:24.04
+
+RUN mkdir /opt/application
+ENV DEBIAN_FRONTEND=noninteractive
+ENV VIRTUAL_ENV=/opt/application/venv
+ENV PATH="/opt/application/venv/bin:${PATH}"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    pip \
+    python3-venv
+
+RUN python3 -m venv "$VIRTUAL_ENV"
+
+CMD ["/bin/bash"]
