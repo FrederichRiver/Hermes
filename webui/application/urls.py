@@ -8,6 +8,6 @@ from apps.core.views import DashboardView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/v1/', include('apps.core.urls')),
+    path("api/v1/", include("apps.core.urls")),
     path('', TemplateView.as_view(template_name='index.html'), name='home'),
 ]

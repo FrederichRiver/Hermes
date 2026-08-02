@@ -12,10 +12,17 @@ Django Seed Script —— 初始化示例数据
 import os
 import django
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'application.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "application.settings")
 django.setup()
 
-from apps.core.models import Account, Position, MarketQuote, TradingSignal, RiskMetric, NetValuePoint
+from apps.core.models import (
+    Account,
+    MarketQuote,
+    NetValuePoint,
+    Position,
+    RiskMetric,
+    TradingSignal,
+)
 
 # 1. 创建交易账户
 account, _ = Account.objects.get_or_create(
