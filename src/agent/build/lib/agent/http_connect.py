@@ -14,7 +14,7 @@ Responsibilities
 
 Usage example::
 
-    from agents.http_connect import HttpConnect
+    from agent.http_connect import HttpConnect
 
     client = HttpConnect(base_headers={"User-Agent": "Hermes/1.0"}, max_retries=4)
     data = client.get_json("https://api.example.com/data")
@@ -36,7 +36,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-logger = logging.getLogger("src.agents.http_connect")
+logger = logging.getLogger("agent.http_connect")
 
 
 class HttpConnect:

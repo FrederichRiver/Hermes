@@ -19,7 +19,7 @@ class DataAgent:
 
 
 # Module-level synchronous scraper functions for scheduler to call
-from agents.http_connect import HttpConnect
+from agent.http_connect import HttpConnect
 from utils.parser import (
     extract_codes_from_text,
     parse_sse_html,

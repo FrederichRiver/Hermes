@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Optional, Any, Callable
 import logging
 
-logger = logging.getLogger('src.agents.data_engine.mysql')
+logger = logging.getLogger("agent.data_engine.mysql")
 
 
 class DBConnectionError(Exception):

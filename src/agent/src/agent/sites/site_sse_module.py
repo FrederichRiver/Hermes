@@ -12,9 +12,36 @@ import re
 
 from bs4 import BeautifulSoup
 
-from agents.http_connect import HttpConnect
 
-logger = logging.getLogger('src.agents.sites.sse')
+def _looks_like_stock_name(value: str) -> bool:
+    """Return True when a parsed value looks like a real stock name."""
+    if not value:
+        return False
+
+    text = value.strip()
+    if not text or len(text) < 2:
+        return False
+
+    if re.fullmatch(r"[\d\-\.]+", text):
+        return False
+
+    if re.fullmatch(r"[A-Za-z0-9]+", text):
+        return False
+
+    if re.match(r"^(?:[0-9]{6}|[0-9]{8}|[0-9]{4})$", text):
+        return False
+
+    if text.startswith("http") or text.startswith("//"):
+        return False
+
+    if "©" in text or "ICP" in text or "备案" in text or "网站" in text:
+        return False
+
+    return True
+
+from agent.http_connect import HttpConnect
+
+logger = logging.getLogger("agent.sites.sse")
 
 
 def parse_sse_share_list(text: str) -> List[Dict]:
@@ -110,6 +137,9 @@ class SseSiteClient(HttpConnect):
             code = (it.get('code') or '').strip()
             name = (it.get('name') or '').strip()
             if not code or not code.isdigit():
+                continue
+            if not _looks_like_stock_name(name):
+                logger.debug('Skipping non-stock-name value for code %s: %r', code, name)
                 continue
             records.append({'code': code, 'name': name, 'exchange': it.get('exchange', 'SH'), 'list_date': it.get('list_date')})
         logger.info(f'SseSiteClient fetched {len(records)} records from {url}')
