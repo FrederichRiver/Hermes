@@ -13,7 +13,7 @@
     {
       "id": "fetch_sse_stock_info",
       "name": "Fetch Shanghai Exchange Codes and Info to DB",
-      "func": "src.agents.data_agent:fetch_sse_stock_info",
+      "func": "agent.data_agent:fetch_sse_stock_info",
       "enabled": true,
       "trigger": {
         "type": "cron",
@@ -25,7 +25,7 @@
     {
       "id": "fetch_szse_codes",
       "name": "Fetch Shenzhen Exchange Codes",
-      "func": "src.agents.data_agent:fetch_szse_codes",
+      "func": "agent.data_agent:fetch_szse_codes",
       "enabled": true,
       "trigger": {
         "type": "cron",
@@ -37,7 +37,7 @@
     {
       "id": "example_interval_job",
       "name": "Example Interval Job (5 minutes)",
-      "func": "src.agents.data_agent:fetch_sse_codes",
+      "func": "agent.data_agent:fetch_sse_codes",
       "enabled": false,
       "trigger": {
         "type": "interval",

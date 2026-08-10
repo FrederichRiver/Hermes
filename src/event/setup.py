@@ -10,5 +10,5 @@ setup(
     python_requires=">=3.10",
     package_dir={"": "src"},
     packages=find_packages("src", include=["event", "event.*"]),
-    install_requires=["hermes-agents>=0.1.0"],
+    install_requires=["hermes-agent>=0.1.0", "hermes-data-engine>=0.1.0"],
 )

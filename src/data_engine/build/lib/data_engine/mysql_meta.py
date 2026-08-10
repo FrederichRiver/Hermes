@@ -8,24 +8,6 @@ import pymysql
 logger = logging.getLogger(__name__)
 
 
-def resolve_stock_connection(
-    server_name: typing.Optional[str] = None,
-) -> dict[str, str]:
-    """Return passwordless stock-database settings for ``SERVER_NAME``."""
-    server_name = server_name if server_name is not None else os.getenv("SERVER_NAME")
-    if server_name == "TEST_SERVER":
-        database = "test"
-    elif isinstance(server_name, str) and re.fullmatch(r"Ubuntu_.+", server_name):
-        database = "stock_data"
-    else:
-        raise ValueError(
-            "SERVER_NAME must be TEST_SERVER or begin with Ubuntu_ to connect "
-            "to the stock database."
-        )
-
-    return {"user": "stock", "password": "", "db": database}
-
-
 class MySQLMeta:
         """Lightweight MySQL connection manager and helper utilities.
 
@@ -62,18 +44,23 @@ class MySQLMeta:
                 """Initialise connection configuration but do not connect immediately.
 
                 Parameters
-                - host, port: MySQL server location.
-                - user, password, database: retained for API compatibility but
-                  selected from SERVER_NAME when connecting.
+                - host, port, user, password: connection credentials.
+                - database: optional default database name.
                 - charset: client charset; default utf8mb4 to support full Unicode.
                 """
-                # Host and port remain configurable because deployment topology
-                # varies. SERVER_NAME selects the user and database at connect time.
+                # Allow credentials to be provided via environment variables as a
+                # secure alternative to hardcoding. Environment variable names used
+                # (in order of precedence):
+                #   - HOST: MYSQL_HOST
+                #   - PORT: MYSQL_PORT
+                #   - USER: MYSQL_USER
+                #   - PASSWORD: MYSQL_PASSWORD or DB_PASSWORD
+                #   - DATABASE: MYSQL_DB or MYSQL_DATABASE
                 host = host or os.getenv("MYSQL_HOST") or os.getenv("DB_HOST") or "127.0.0.1"
                 port = int(port) if port is not None else int(os.getenv("MYSQL_PORT", os.getenv("DB_PORT", 3306)))
-                user = None
-                password = ""
-                database = None
+                user = user or os.getenv("MYSQL_USER") or os.getenv("DB_USER")
+                password = password or os.getenv("MYSQL_PASSWORD") or os.getenv("DB_PASSWORD")
+                database = database or os.getenv("MYSQL_DB") or os.getenv("MYSQL_DATABASE") or os.getenv("DB_NAME")
 
                 self._cfg = dict(host=host, port=port, user=user, password=password, db=database, charset=charset, cursorclass=pymysql.cursors.DictCursor)
                 self._conn: typing.Optional[pymysql.connections.Connection] = None
@@ -88,14 +75,8 @@ class MySQLMeta:
             """
             if self._conn and getattr(self._conn, "open", False):
                 return self._conn
-            connection_cfg = {**self._cfg, **resolve_stock_connection()}
-            logger.debug(
-                "Opening MySQL connection to %s:%s db=%s",
-                connection_cfg["host"],
-                connection_cfg["port"],
-                connection_cfg["db"],
-            )
-            self._conn = pymysql.connect(**connection_cfg)
+            logger.debug("Opening MySQL connection to %s:%s db=%s", self._cfg.get("host"), self._cfg.get("port"), self._cfg.get("db"))
+            self._conn = pymysql.connect(**self._cfg)
             return self._conn
 
         def close(self):

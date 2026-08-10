@@ -1,4 +1,4 @@
-from qts.utils import parser
+from utils import parser
 
 
 def test_extract_codes_shanghai():
