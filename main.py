@@ -66,20 +66,8 @@ def _get_database_directory() -> Path:
 
 
 def _get_task_file() -> Path:
-    """Return the installed task configuration file."""
-    # Prefer an explicit filesystem location for task.json. Avoid importing
-    # a `config` package so the runtime doesn't require an installed package.
-    here = Path(__file__).resolve().parent
-    candidates = [
-        here / "config" / "task.json",
-        here.parent / "config" / "task.json",
-        Path("/opt/application/config/task.json"),
-    ]
-    for c in candidates:
-        if c.exists():
-            return c
-    # If none found, return the primary application path (may not exist yet).
-    return Path("/opt/application/config/task.json")
+    """Return the task configuration file in the application root."""
+    return Path(__file__).resolve().parent / "task.json"
 
 
 def _should_daemonize() -> bool:
