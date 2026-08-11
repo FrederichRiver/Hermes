@@ -10,5 +10,5 @@ setup(
     python_requires=">=3.10",
     package_dir={"": "src"},
     packages=find_packages("src", include=["event_engine", "event_engine.*"]),
-    install_requires=["APScheduler>=3.10.0"],
+    install_requires=["APScheduler>=3.10.0", "redis>=5.0.0"],
 )

@@ -16,4 +16,9 @@ setup(
         "hermes-utils>=0.1.0",
         "requests>=2.28.0",
     ],
+    entry_points={
+        "console_scripts": [
+            "quantcli=agent.email_confirmation:main",
+        ],
+    },
 )
