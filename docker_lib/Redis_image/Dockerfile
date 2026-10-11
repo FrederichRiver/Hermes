@@ -1,12 +1,12 @@
 # Ubuntu/Debian
-FROM ubuntu:24.04
+FROM redis:latest
 
-RUN apt update && apt install -y redis-server
+# 复制自定义配置文件
+COPY redis.conf /usr/local/etc/redis/redis.conf
 
-# 启动并设置开机自启
-RUN systemctl enable redis-server
-RUN systemctl start redis-server
+# 暴露端口
+EXPOSE 6379
 
 WORKDIR /etc/redis
-
-CMD ["tail", "-f", "/dev/null"]
+# 使用自定义配置启动（覆盖默认 CMD）
+CMD ["redis-server", "/usr/local/etc/redis/redis.conf"]
