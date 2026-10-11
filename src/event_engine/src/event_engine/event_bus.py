@@ -31,7 +31,9 @@ class EventBus(Protocol):
 
 
 class EventRecordStore(Protocol):
-    """Idempotency and fallback-query storage for generated market events."""
+    """
+    Idempotency and fallback-query storage for generated market events.
+    """
 
     def record_once(
         self,
