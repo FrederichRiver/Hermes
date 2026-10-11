@@ -1,49 +1,29 @@
-# Hermes
-
-Scheduler hot-reload: `src/event_engine/scheduler.py` uses Watchdog to reload `src/config/scheduler.json` on changes. Update job `func` values to point to module-level callables or add adapters.
-
-A project of quantitive trading.
-
-你可以将以下内容保存�?docs/README.md �?docs/DOC_GUIDE.md，作为你的文档组织和维护指南�?
-
----
-
-# Hermes 项目文档组织与维护指�?
+# Hermes 项目文档组织与维护指南
 
 ## 目录结构建议
 
+```text
+.config/                     # kimi code工作相关的配置文件，包括skill的存放
+.github/                     # vscode copilot工作相关的文件.
+.venv/                       # Python虚拟环境目录
+.vscode/                     # VSCode相关配置文件
+dist/                        # 存放构建生成的分发文件
+docker_lib/                  # 存放与Docker相关的配置和脚本
+docs/                        # 存放系统文档和功能设计文件以及辅助资料
+├── CDD-xxxx.md              # class definition document, 用于记录类的定义、属性和方法等信息
+├── RD-xxxx.md               # Reference document, 用于记录参考资料、文献等信息
+tests/                       # 存放测试代码和测试结果
+webui/                       # 存放Web用户界面代码文件
+.gitignore                   # Git忽略文件配置
+AGENTS.md                    # 记录各Agent/模块的功能、接口、协作方式等信息
+package_versions.txt          # 记录各个包的版本信息
 ```
-docs/
-├── README.md                # 文档总览与导�?
-├── src-SDD/                 # 系统设计说明书（详细设计、架构、流程）
-�?  ├── src-SDD-v0.1.md
-�?  └── src-SDD-v0.2.md
-├── AGENTS.md                # Agent/模块设计与接口说�?
-├── API.md                   # Web/API接口文档
-├── DB_SCHEMA.md             # 数据库结构与表说�?
-├── UI_DESIGN.md             # 用户界面与交互设�?
-├── WORKFLOW.md              # 关键业务流程与用�?
-└── CHANGELOG.md             # 设计和实现变更记�?
-```
-
-## 各文档说�?
-
-- **README.md**：简要介绍文档体系、各文档作用和入口导航�?
-- **src-SDD/**：系统设计说明书，详细描述架构、模块、数据流、技术选型等�?
-- **AGENTS.md**：专门记录各Agent/模块的功能、接口、协作方式�?
-- **API.md**：Web服务、前后端、第三方接口的输入输出格式、协议说明�?
-- **DB_SCHEMA.md**：数据库表结构、字段说明、索引、关系等�?
-- **UI_DESIGN.md**：界面原型、页面结构、交互流程、主要字段�?
-- **WORKFLOW.md**：典型业务流程、用例、时序图等�?
-- **CHANGELOG.md**：每次设�?实现变更的简要记录，便于追溯�?
 
 ## 维护建议
 
-- 每次设计或实现有重大调整时，及时同步更新相关文档�?
-- 文档内容建议使用Markdown格式，便于版本管理和协作�?
-- 目录结构和命名保持简洁、统一，便于长期维护�?
-- 重要决策、约束、TODO等可用专门小节或标签标注�?
+- 每次设计或实现有重大调整时，及时同步更新相关文档。
+- 文档内容建议使用Markdown格式，便于版本管理和协作。
+- 目录结构和命名保持简洁、统一，便于长期维护。
+- 重要决策、约束、TODO等可用专门小节或标签标注。
 
 ---
-
-本指南用于规范Hermes项目的文档编写、归档和维护，确保系统设计与实现过程的可追溯性和高效协作�
