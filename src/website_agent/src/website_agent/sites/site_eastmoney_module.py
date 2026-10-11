@@ -10,7 +10,7 @@ from datetime import date
 import json
 import re
 
-from agent.http_connect import HttpConnect
+from website_agent.http_connect import HttpConnect
 
 
 EASTMONEY_STOCK_KLINE_API_URL = (

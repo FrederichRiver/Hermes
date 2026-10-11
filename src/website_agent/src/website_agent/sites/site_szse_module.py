@@ -4,7 +4,7 @@ import json
 import re
 from typing import Dict, List
 
-from agent.http_connect import HttpConnect
+from website_agent.http_connect import HttpConnect
 
 
 SZSE_STOCK_LIST_API_URL = "https://www.szse.cn/api/report/ShowReport/data"

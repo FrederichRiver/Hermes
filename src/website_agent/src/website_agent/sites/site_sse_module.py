@@ -40,7 +40,7 @@ def _looks_like_stock_name(value: str) -> bool:
 
     return True
 
-from agent.http_connect import HttpConnect
+from website_agent.http_connect import HttpConnect
 
 logger = logging.getLogger("agent.sites.sse")
 
