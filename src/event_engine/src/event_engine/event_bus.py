@@ -7,25 +7,32 @@ import logging
 import threading
 from typing import Protocol
 
-from .quant_event import QuantEvent
+from .event import Event
 
 
 logger = logging.getLogger(__name__)
 
 
 class EventBus(Protocol):
-    """Transport contract used by producers and consumers of ``QuantEvent``."""
+    """Transport contract used by producers and consumers of Hermes events."""
 
-    def publish(self, event: QuantEvent) -> None:
+    def publish(self, event: Event) -> None:
         """Publish an event to the notification channel."""
 
-    def enqueue(self, queue_name: str, event: QuantEvent) -> None:
+    def xadd(
+        self,
+        stream_name: str,
+        fields: Mapping[str, str | bytes | int | float],
+    ) -> str | bytes:
+        """Append fields to a named stream and return the generated entry ID."""
+
+    def enqueue(self, queue_name: str, event: Event) -> None:
         """Append a durable task event to a named queue."""
 
     def subscribe(
         self,
         event_type: str,
-        handler: Callable[[QuantEvent], None],
+        handler: Callable[[Event], None],
     ) -> None:
         """Register a local notification handler."""
 
@@ -39,7 +46,7 @@ class EventRecordStore(Protocol):
         self,
         market: str,
         trading_date: date,
-        event: QuantEvent,
+        event: Event,
     ) -> bool:
         """Store an event once and return whether this invocation recorded it."""
 
@@ -47,7 +54,7 @@ class EventRecordStore(Protocol):
         self,
         market: str,
         trading_date: date,
-    ) -> list[QuantEvent]:
+    ) -> list[Event]:
         """Return all generated events for a market on a calendar date."""
 
 
@@ -59,6 +66,13 @@ class RedisClient(Protocol):
 
     def lpush(self, key: str, value: str) -> int:
         """Push a durable message onto a Redis List."""
+
+    def xadd(
+        self,
+        name: str,
+        fields: Mapping[str, str | bytes | int | float],
+    ) -> str | bytes:
+        """Append fields to a Redis Stream and return the generated entry ID."""
 
     def rpush(self, key: str, value: str) -> int:
         """Append a serialized event to a Redis List."""
@@ -101,29 +115,41 @@ class InMemoryEventBus:
 
     def __init__(self) -> None:
         """Initialize empty notification handlers and durable queues."""
-        self.published_events: list[QuantEvent] = []
-        self.queues: dict[str, list[QuantEvent]] = defaultdict(list)
-        self._handlers: dict[str, list[Callable[[QuantEvent], None]]] = defaultdict(
-            list
-        )
+        self.published_events: list[Event] = []
+        self.queues: dict[str, list[Event]] = defaultdict(list)
+        self.streams: dict[
+            str, list[tuple[str, dict[str, str | bytes | int | float]]]
+        ] = defaultdict(list)
+        self._handlers: dict[str, list[Callable[[Event], None]]] = defaultdict(list)
 
-    def publish(self, event: QuantEvent) -> None:
+    def publish(self, event: Event) -> None:
         """Publish an event and synchronously notify registered local handlers."""
         self.published_events.append(event)
         for handler in self._handlers[event.event_type]:
             handler(event)
 
-    def enqueue(self, queue_name: str, event: QuantEvent) -> None:
+    def enqueue(self, queue_name: str, event: Event) -> None:
         """Append an event to an in-memory durable-task queue."""
         self.queues[_queue_key(queue_name)].append(event)
+
+    def xadd(
+        self,
+        stream_name: str,
+        fields: Mapping[str, str | bytes | int | float],
+    ) -> str:
+        """Append fields to an in-memory stream and return a synthetic entry ID."""
+        entries = self.streams[stream_name]
+        entry_id = f"{len(entries) + 1}-0"
+        entries.append((entry_id, dict(fields)))
+        return entry_id
 
     def subscribe(
         self,
         event_type: str,
-        handler: Callable[[QuantEvent], None],
+        handler: Callable[[Event], None],
     ) -> None:
         """Register a local handler for one exact event type."""
-        QuantEvent._validate_event_type(event_type)
+        Event.validate_event_type(event_type)
         self._handlers[event_type].append(handler)
 
 
@@ -133,33 +159,50 @@ class RedisEventBus:
     def __init__(self, redis_client: RedisClient) -> None:
         """Initialize the bus with an already-configured Redis client."""
         self._redis = redis_client
-        self._handlers: dict[str, list[Callable[[QuantEvent], None]]] = defaultdict(
-            list
-        )
+        self._handlers: dict[str, list[Callable[[Event], None]]] = defaultdict(list)
         self._listener_thread: threading.Thread | None = None
         self._listener_stop = threading.Event()
         self._pubsub: RedisPubSub | None = None
 
-    def publish(self, event: QuantEvent) -> None:
+    def publish(self, event: Event) -> None:
         """Publish a notification on ``event:<event_type>``."""
         self._redis.publish(f"event:{event.event_type}", event.to_json())
 
-    def enqueue(self, queue_name: str, event: QuantEvent) -> None:
+    def xadd(
+        self,
+        stream_name: str,
+        fields: Mapping[str, str | bytes | int | float],
+    ) -> str | bytes:
+        """Append fields to a Redis Stream and return the generated entry ID."""
+        return self._redis.xadd(stream_name, fields)
+
+    def enqueue(self, queue_name: str, event: Event) -> None:
         """Persist a task event in ``queue:<queue_name>``."""
         self._redis.lpush(_queue_key(queue_name), event.to_json())
 
     def subscribe(
         self,
         event_type: str,
-        handler: Callable[[QuantEvent], None],
+        handler: Callable[[Event], None],
     ) -> None:
         """Register a handler for use by the Redis listener integration."""
-        QuantEvent._validate_event_type(event_type)
+        Event.validate_event_type(event_type)
         self._handlers[event_type].append(handler)
+        # If we are already listening on Redis, keep the subscription up-to-date.
+        # Otherwise, start the background listener immediately so a newly registered
+        # consumer does not miss messages that arrive before the app explicitly calls
+        # start_listener().
+        if self._listener_thread is None or not self._listener_thread.is_alive():
+            try:
+                self.start_listener()
+            except RuntimeError:
+                # No handlers were registered before this call because we just added one,
+                # so this should not happen. Keep it resilient for defensive usage.
+                pass
 
     def dispatch(self, serialized_event: str | bytes) -> None:
         """Dispatch one Redis-delivered event to local registered handlers."""
-        event = QuantEvent.from_json(serialized_event)
+        event = Event.from_json(serialized_event)
         for handler in self._handlers[event.event_type]:
             try:
                 handler(event)
@@ -223,14 +266,14 @@ class InMemoryEventRecordStore:
 
     def __init__(self) -> None:
         """Initialize empty deduplication and event-history collections."""
-        self._events: dict[tuple[str, date], list[QuantEvent]] = defaultdict(list)
+        self._events: dict[tuple[str, date], list[Event]] = defaultdict(list)
         self._keys: set[tuple[str, date, str]] = set()
 
     def record_once(
         self,
         market: str,
         trading_date: date,
-        event: QuantEvent,
+        event: Event,
     ) -> bool:
         """Record a market event exactly once for its natural calendar day."""
         key = (market, trading_date, event.event_type)
@@ -244,7 +287,7 @@ class InMemoryEventRecordStore:
         self,
         market: str,
         trading_date: date,
-    ) -> list[QuantEvent]:
+    ) -> list[Event]:
         """Return a copy of market events recorded for the requested date."""
         return list(self._events[(market, trading_date)])
 
@@ -262,7 +305,7 @@ class RedisEventRecordStore:
         self,
         market: str,
         trading_date: date,
-        event: QuantEvent,
+        event: Event,
     ) -> bool:
         """Store one event only when it was not emitted earlier that day."""
         deduplication_key = (
@@ -286,10 +329,10 @@ class RedisEventRecordStore:
         self,
         market: str,
         trading_date: date,
-    ) -> list[QuantEvent]:
+    ) -> list[Event]:
         """Read retained events to let restarted modules compensate for Pub/Sub."""
         return [
-            QuantEvent.from_json(serialized_event)
+            Event.from_json(serialized_event)
             for serialized_event in self._redis.lrange(
                 _history_key(market, trading_date),
                 0,

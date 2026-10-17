@@ -7,6 +7,6 @@ COPY redis.conf /usr/local/etc/redis/redis.conf
 # 暴露端口
 EXPOSE 6379
 
-WORKDIR /etc/redis
+WORKDIR /opt/redis
 # 使用自定义配置启动（覆盖默认 CMD）
 CMD ["redis-server", "/usr/local/etc/redis/redis.conf"]

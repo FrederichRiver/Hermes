@@ -19,7 +19,7 @@ class DataAgent:
 
 
 # Module-level synchronous scraper functions for scheduler to call
-from website_agent.http_connect import HttpConnect
+from website_agent.http_utils.client import HttpClient
 from utils.parser import (
     extract_codes_from_text,
     parse_sse_html,
@@ -30,7 +30,12 @@ from utils.parser import (
 
 logger = logging.getLogger("src.data_agent")
 # default http client for site scrapers
-_client = HttpConnect(base_headers={"User-Agent": "Hermes-DataAgent/1.0"}, timeout=15.0, max_retries=3, backoff_factor=0.5)
+_client = HttpClient(
+    base_headers={"User-Agent": "Hermes-DataAgent/1.0"},
+    timeout=15.0,
+    max_retry=3,
+    backoff=0.5,
+)
 
 # Best-effort list pages for exchanges (may need adjustment if site structure changes)
 _SSE_LIST_URL = "http://www.sse.com.cn/assortment/stock/list/share/"
@@ -60,7 +65,7 @@ def _write_codes_atomic(codes: List[str], output_path: str):
 
 def _fetch_and_write(url: str, prefix: str, output_path: str) -> int:
     try:
-        text = _client.get(url)
+        text = _client.get_text(url)
         # prefer specialized parsers for known exchanges, fallback to generic regex
         if prefix == "SH":
             codes = parse_sse_html(text)

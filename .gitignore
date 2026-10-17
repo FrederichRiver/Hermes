@@ -1,8 +1,0 @@
-.vscode/launch.json
-AGENTS.md
-.venv/*
-.github/*
-*.pyc
-__pycache__/
-.config/*
-docs/*

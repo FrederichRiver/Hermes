@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SOURCE_DIRECTORY="/mnt/Frankfort/ftp/upload/dist"
-CONTAINER_NAME="app_server_1"
-DESTINATION_DIRECTORY="/home/fred/Downloads/dist"
+SOURCE_DIRECTORY="/mnt/Milano/ftp/upload/dist"
+DESTINATION_DIRECTORY="/mnt/Milano/src_space/dist"
 
 if [[ ! -d "$SOURCE_DIRECTORY" ]]; then
     echo "Source directory does not exist: $SOURCE_DIRECTORY" >&2
     exit 1
 fi
 
-shopt -s nullglob
-packages=("$SOURCE_DIRECTORY"/*.tar.gz)
-if (( ${#packages[@]} == 0 )); then
-    echo "No tar.gz packages found in: $SOURCE_DIRECTORY" >&2
-    exit 1
+mkdir -p "$DESTINATION_DIRECTORY"
+
+shopt -s dotglob nullglob
+items=("$SOURCE_DIRECTORY"/*)
+
+if (( ${#items[@]} == 0 )); then
+    echo "No files found in: $SOURCE_DIRECTORY"
+    exit 0
 fi
 
-docker exec "$CONTAINER_NAME" mkdir -p "$DESTINATION_DIRECTORY"
-
-for package in "${packages[@]}"; do
-    docker cp "$package" "$CONTAINER_NAME:$DESTINATION_DIRECTORY/"
-    echo "Copied $(basename "$package") to $CONTAINER_NAME:$DESTINATION_DIRECTORY"
+for item in "${items[@]}"; do
+    cp -a "$item" "$DESTINATION_DIRECTORY/"
+    echo "Copied $(basename "$item") to $DESTINATION_DIRECTORY"
 done

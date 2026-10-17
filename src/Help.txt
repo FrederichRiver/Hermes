@@ -1,0 +1,30 @@
+Hermes 运维速查（Help.txt）
+
+位置与文件
+- 应用目录: /opt/application
+- 日志目录: /opt/application/log
+- 数据库目录: /opt/application/database
+- PID 文件: /tmp/hermes.pid
+- 任务配置文件: ${REPO_ROOT}/src/task.json
+
+常用命令（在应用根目录或直接指定脚本路径）
+- 启动（前台，适用于 Windows）:
+  python src/main.py start
+
+- 停止:
+  python src/main.py stop
+
+- 清理日志:
+  python src/main.py clear
+
+- 显示帮助:
+  python src/main.py help
+
+排查建议
+- 查看最近日志:
+  tail -n 200 /opt/application/log/hermes.log
+
+- 当 Hermes 无法启动但 PID 文件存在：
+  1) 检查 PID 文件: cat /tmp/hermes.pid
+  2) 检查该 PID 是否存在: ps -p <PID>
+  3) 如果不存在，删除 PID 文件: rm /tmp/hermes.pid

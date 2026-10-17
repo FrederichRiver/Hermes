@@ -2,10 +2,13 @@ services:
   Redis_service:
     build: 
       context: .
-      network: host
+      dockerfile: Dockerfile
+      # network: host
     image: redis_image
     restart: no
     container_name: redis_server
+    ports:
+      - "6379:6379"
     volumes:
       - redis_space:/opt/redis
     dns:
@@ -25,8 +28,9 @@ networks:
 
 volumes:
   redis_space:
+    name: redis_space
     driver: local
     driver_opts:
       type: none
-      device: /mnt/Milano/redis
+      device: /mnt/Milano/redis_data
       o: bind

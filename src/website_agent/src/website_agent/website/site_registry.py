@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from website_agent.site.base import BaseSite
+from website_agent.website.agent import BaseSite
 
 
 class SiteRegistry:

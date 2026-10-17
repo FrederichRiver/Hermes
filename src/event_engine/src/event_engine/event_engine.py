@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, Dict, Iterable, Optional
 
-from core.event import EventType
+from .event import EventType
 
 from .event import Event
 from .event_bus import EventBus, InMemoryEventBus
@@ -38,14 +38,18 @@ class EventEngine:
         priority: int = 5,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Event:
-        event = Event(
-            event_type=event_type,
-            data=event_data or {},
+        # Normalize event_type to string for the Event factory
+        et = event_type.name if isinstance(event_type, EventType) else str(event_type)
+        # Create Event using the canonical factory (Event.create)
+        event = Event.create(
+            event_type=et,
             source=source,
-            priority=priority,
-            metadata=metadata or {},
+            event_data=event_data or {},
+            trace_id=(metadata or {}).get("trace_id") if metadata else None,
         )
-        for handler in list(self.handlers.get(event.type.name, [])):
+        # Determine handler key: EventType-like names are registered as strings
+        handler_key = event.event_type if isinstance(event.event_type, str) else event.event_type.name
+        for handler in list(self.handlers.get(handler_key, [])):
             handler(event)
         return event
 
@@ -68,6 +72,18 @@ class EventEngine:
         if hasattr(self.bus, "publish"):
             self.bus.publish(event)
         return event
+
+    def xadd(
+        self,
+        stream_name: str,
+        fields: Mapping[str, str | bytes | int | float],
+    ) -> str | bytes:
+        """Append fields to a Redis Stream through the configured event bus."""
+        return self.bus.xadd(stream_name, fields)
+
+    def enqueue(self, queue_name: str, event: Event) -> None:
+        """Add an event to a durable queue through the configured event bus."""
+        self.bus.enqueue(queue_name, event)
 
     def start(self) -> None:
         self.running = True

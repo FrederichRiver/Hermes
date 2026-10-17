@@ -1,0 +1,2 @@
+[console_scripts]
+quantcli = agent.email_confirmation:main

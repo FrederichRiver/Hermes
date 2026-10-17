@@ -9,16 +9,17 @@ setup(
     description="Hermes trading agent",
     python_requires=">=3.10",
     package_dir={"": "src"},
-    packages=find_packages("src", include=["agent", "agent.*"]),
+    packages=find_packages("src", include=["website_agent", "website_agent.*"]),
     install_requires=[
         "beautifulsoup4>=4.12.0",
         "hermes-data-engine>=0.1.0",
+        "hermes-event-engine>=0.1.0",
         "hermes-utils>=0.1.0",
         "requests>=2.28.0",
     ],
     entry_points={
         "console_scripts": [
-            "quantcli=agent.email_confirmation:main",
+            "quantcli=website_agent.email_confirmation:main",
         ],
     },
 )

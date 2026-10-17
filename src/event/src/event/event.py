@@ -1,18 +1,16 @@
 """Scheduler-callable events for synchronizing external data."""
 
 import csv
-from collections.abc import Mapping
-from datetime import date
 import logging
 from pathlib import Path
-import re
 
-from agent.sites.site_bse_module import BseSiteClient
-from agent.sites.site_eastmoney_market_module import EastmoneyMarketSiteClient
-from agent.sites.site_eastmoney_module import EastmoneySiteClient
-from agent.sites.site_sse_module import SSE_STOCK_LIST_API_URL, SseSiteClient
-from agent.sites.site_szse_module import SZSE_STOCK_LIST_API_URL, SzseSiteClient
+from website_agent.website.site_bse_module import BseSiteClient
+from website_agent.website.site_eastmoney_market_module import EastmoneyMarketSiteClient
+from website_agent.website.eastmoney_site import EastmoneySiteClient
+from website_agent.website.site_sse_module import SSE_STOCK_LIST_API_URL, SseSiteClient
+from website_agent.website.site_szse_module import SZSE_STOCK_LIST_API_URL, SzseSiteClient
 from data_engine.mysql_table import StockIndex
+from data_engine.stock_tables import StockIndexEntity
 from requests.exceptions import RequestException
 
 logger = logging.getLogger(__name__)
@@ -154,30 +152,13 @@ def event_update_stock_index(exchange: str = "ALL") -> None:
             f"{exchange_code} returned no stock records; stock_index was not changed."
         )
 
-    stock_index = StockIndex(None, None, None, None)
-    table_name = stock_index.Meta.db_table
-    update_stock_index_sql = (
-        f"INSERT INTO `{table_name}` "
-        "(`stock_code`, `short_name`, `stock_name`, `publish_date`, `update_date`) "
-        "VALUES (%s, %s, %s, %s, %s) "
-        "ON DUPLICATE KEY UPDATE "
-        "`short_name` = VALUES(`short_name`), "
-        "`stock_name` = VALUES(`stock_name`), "
-        "`publish_date` = VALUES(`publish_date`), "
-        "`update_date` = VALUES(`update_date`)"
-    )
-    update_date = date.today().isoformat()
+    stock_index_meta = StockIndex(None, None, None, None)
+    stock_index = StockIndexEntity(stock_index_meta)
     try:
-        stock_index.create_table()
-        with stock_index.transaction():
-            for result_record in result_list:
-                stock_index.execute(
-                    update_stock_index_sql,
-                    _normalize_stock_index_row(result_record, update_date),
-                    commit=False,
-                )
+        stock_index_meta.create_table()
+        stock_index.upsert_sse_stocks(result_list)
     finally:
-        stock_index.close()
+        stock_index_meta.close()
 
     logger.info(
         f"Updated stock_index with {len(result_list)} {exchange_code} stock records."
@@ -416,75 +397,3 @@ def _write_market_price_rows(
     except Exception:
         temporary_path.unlink(missing_ok=True)
         raise
-
-
-def _normalize_stock_index_row(
-    record: Mapping[str, object],
-    update_date: str,
-) -> tuple[str, str, str, str | None, str]:
-    """Convert an exchange listing record to the stock_index table column order."""
-    code = record.get("code")
-    exchange = record.get("exchange", "SH")
-    if not isinstance(exchange, str) or exchange.strip().upper() not in {
-        "SH",
-        "SZ",
-        "BZ",
-        "US",
-        "HK",
-    }:
-        raise ValueError(f"Invalid stock exchange: {exchange!r}")
-    exchange_code = exchange.strip().upper()
-    if (
-        not isinstance(code, str)
-        or not _is_valid_stock_index_code(code, exchange_code)
-    ):
-        raise ValueError(f"Invalid {exchange_code} stock code: {code!r}")
-
-    name = record.get("name")
-    if not isinstance(name, str) or not name.strip():
-        raise ValueError(f"Missing SSE stock name for code {code}.")
-    stock_name = name.strip()
-
-    stock_code = f"{exchange_code}{code.upper()}"
-
-    short_name = record.get("short_name", stock_name)
-    if not isinstance(short_name, str) or not short_name.strip():
-        short_name = stock_name
-    short_name = short_name.strip()
-
-    if len(short_name) > 10:
-        logger.warning(f"Truncating short_name for {stock_code} to 10 characters.")
-        short_name = short_name[:10]
-    if len(stock_name) > 20:
-        logger.warning(f"Truncating stock_name for {stock_code} to 20 characters.")
-        stock_name = stock_name[:20]
-
-    return (
-        stock_code,
-        short_name,
-        stock_name,
-        _normalize_publish_date(record.get("list_date")),
-        update_date,
-    )
-
-
-def _is_valid_stock_index_code(code: str, exchange: str) -> bool:
-    """Validate a source stock code for its exchange namespace."""
-    if exchange in {"SH", "SZ", "BZ"}:
-        return re.fullmatch(r"\d{6}", code) is not None
-    if exchange == "US":
-        return re.fullmatch(r"[A-Za-z][A-Za-z0-9.-]{0,7}", code) is not None
-    return re.fullmatch(r"\d{5}", code) is not None
-
-
-def _normalize_publish_date(value: object) -> str | None:
-    """Normalize an optional SSE listing date to the MySQL DATE representation."""
-    if value is None or value == "":
-        return None
-    if not isinstance(value, str):
-        raise ValueError(f"Invalid SSE listing date: {value!r}")
-
-    try:
-        return date.fromisoformat(value[:10]).isoformat()
-    except ValueError as exc:
-        raise ValueError(f"Invalid SSE listing date: {value!r}") from exc

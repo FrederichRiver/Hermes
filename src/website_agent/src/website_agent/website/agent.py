@@ -2,16 +2,43 @@ from __future__ import annotations
 
 import logging
 import time
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from event_engine.event import Event
 
-from website_agent.http_utils.client import HttpClient, HttpFatalError
+from website_agent.http_utils.client import HttpClient, HttpFatalError, RequestSpec
 from website_agent.http_utils.robots import RobotsChecker
-from website_agent.site.base import BaseSite
 
 logger = logging.getLogger(__name__)
+
+
+class BaseSite(ABC):
+    """Abstract adapter for a single website data source."""
+
+    name: str = "base"
+    priority: int = 100
+
+    def __init__(self, config: Any | None = None) -> None:
+        self._config = config
+
+    def supports(self, task_type: str) -> bool:
+        raise NotImplementedError
+
+    def rate_limit(self) -> float:
+        return 5.0
+
+    def auth(self) -> dict[str, Any]:
+        return {}
+
+    @abstractmethod
+    def build_request(self, task: Any) -> RequestSpec:
+        raise NotImplementedError
+
+    @abstractmethod
+    def parse(self, response: Any) -> list[dict[str, Any]]:
+        raise NotImplementedError
 
 
 @dataclass(slots=True)
@@ -151,4 +178,4 @@ class WebsiteAgent:
         }
 
 
-__all__ = ["FetchTask", "CircuitState", "WebsiteAgent"]
+__all__ = ["BaseSite", "FetchTask", "CircuitState", "WebsiteAgent"]
