@@ -2,9 +2,10 @@
 
 import json
 import re
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from website_agent.http_utils.client import HttpClient
+from website_agent.website.agent import BaseSite
 
 
 SZSE_STOCK_LIST_API_URL = "https://www.szse.cn/api/report/ShowReport/data"
@@ -187,8 +188,58 @@ def _strip_html_value(value: object) -> str:
     return _strip_html(value)
 
 
-class SzseSiteClient(HttpClient):
+class SzseSiteClient(BaseSite):
     """Fetch and normalize Shenzhen Stock Exchange listing records."""
+
+    name = "szse"
+    priority = 20
+
+    def __init__(
+        self,
+        config: Any | None = None,
+        http_clients: dict[str, HttpClient] | None = None,
+        **client_options: Any,
+    ) -> None:
+        client_options.setdefault("timeout", 30.0)
+        client_options.setdefault(
+            "base_headers",
+            {
+                "User-Agent": "Mozilla/5.0 Hermes SZSE stock-list fetcher",
+                "Referer": "https://www.szse.cn/index/index.html",
+            },
+        )
+        super().__init__(config, http_clients, **client_options)
+
+    def supports(self, task_type: str) -> bool:
+        return task_type in {"symbol_list", "index_list", "fund_list"}
+
+    def request_url(self, task: Any) -> str:
+        url = task.params.get("url")
+        if url is not None:
+            if not isinstance(url, str) or not url:
+                raise ValueError("SZSE list task URL must be a non-empty string.")
+            return url
+        urls = {
+            "symbol_list": SZSE_STOCK_LIST_API_URL,
+            "index_list": SZSE_INDEX_LIST_API_URL,
+            "fund_list": SZSE_FUND_LIST_API_URL,
+        }
+        try:
+            return urls[task.task_type]
+        except KeyError as exc:
+            raise ValueError(
+                f"Unsupported SZSE task type: {task.task_type!r}"
+            ) from exc
+
+    def fetch(self, task: Any) -> List[Dict]:
+        url = self.request_url(task)
+        if task.task_type == "symbol_list":
+            return self.fetch_stock_list(url)
+        if task.task_type == "index_list":
+            return self.fetch_index_list(url)
+        if task.task_type == "fund_list":
+            return self.fetch_fund_list(url)
+        raise ValueError(f"Unsupported SZSE task type: {task.task_type!r}")
 
     def fetch_stock_list(self, url: str = SZSE_STOCK_LIST_API_URL) -> List[Dict]:
         """Download SZSE stock listings from its official report API.

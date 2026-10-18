@@ -7,6 +7,7 @@ from typing import Any
 import requests
 from requests.adapters import HTTPAdapter
 
+
 class HttpRetryableError(RuntimeError):
     """Retryable network or server-side failure."""
 
@@ -59,7 +60,13 @@ class HttpClient:
         status_codes: list[int] | None = None,
         pool_connections: int = 10,
         pool_maxsize: int = 10,
+        max_retries: int | None = None,
+        backoff_factor: float | None = None,
     ) -> None:
+        if max_retries is not None:
+            max_retry = max_retries
+        if backoff_factor is not None:
+            backoff = backoff_factor
         self._session = requests.Session()
         if base_headers:
             self._session.headers.update(base_headers)
@@ -90,6 +97,24 @@ class HttpClient:
         )
         self._session.mount("http://", adapter)
         self._session.mount("https://", adapter)
+
+    @property
+    def session(self) -> requests.Session:
+        """Return the underlying requests session."""
+        return self._session
+
+    @session.setter
+    def session(self, value: requests.Session) -> None:
+        self._session = value
+
+    @property
+    def timeout(self) -> float:
+        """Return the default request timeout."""
+        return self._timeout
+
+    @timeout.setter
+    def timeout(self, value: float) -> None:
+        self._timeout = float(value)
 
     def _acquire_token(self) -> None:
         self._token_bucket.acquire()
@@ -130,7 +155,9 @@ class HttpClient:
             response.status_code in self._retry_status_codes
             and req.method in self._retry_methods
         ):
-            raise HttpRetryableError(f"Retryable status {response.status_code} for {req.url}")
+            raise HttpRetryableError(
+                f"Retryable status {response.status_code} for {req.url}"
+            )
         if response.status_code >= 400:
             raise HttpFatalError(f"Fatal status {response.status_code} for {req.url}")
         return response
@@ -166,7 +193,12 @@ class HttpClient:
         timeout: float | None = None,
         **request_options: Any,
     ) -> requests.Response:
-        req = RequestSpec(method=method.upper(), url=url, params=params or {}, headers=headers or {})
+        req = RequestSpec(
+            method=method.upper(),
+            url=url,
+            params=params or {},
+            headers=headers or {},
+        )
         for attempt in range(self._max_retry + 1):
             try:
                 self._acquire_token()

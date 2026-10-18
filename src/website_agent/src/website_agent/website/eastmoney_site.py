@@ -11,7 +11,7 @@ import json
 import re
 from typing import Any
 
-from website_agent.http_utils.client import HttpClient, RequestSpec
+from website_agent.http_utils.client import HttpClient
 from website_agent.website.agent import BaseSite
 
 
@@ -122,7 +122,7 @@ def parse_eastmoney_daily_klines(
     return records
 
 
-class EastmoneySiteClient(HttpClient, BaseSite):
+class EastmoneySiteClient(BaseSite):
     """Combine WebsiteAgent routing and Eastmoney stock data operations."""
 
     name = "eastmoney"
@@ -130,12 +130,11 @@ class EastmoneySiteClient(HttpClient, BaseSite):
 
     def __init__(
         self,
-        *args: Any,
         config: Any | None = None,
+        http_clients: dict[str, HttpClient] | None = None,
         **http_options: Any,
     ) -> None:
-        HttpClient.__init__(self, *args, **http_options)
-        BaseSite.__init__(self, config)
+        super().__init__(config, http_clients, **http_options)
 
     def supports(self, task_type: str) -> bool:
         return task_type in {"daily_bar", "symbol_list"}
@@ -143,36 +142,32 @@ class EastmoneySiteClient(HttpClient, BaseSite):
     def rate_limit(self) -> float:
         return 2.0
 
-    def build_request(self, task: Any) -> RequestSpec:
-        params = dict(task.params)
-        url = "https://push2.eastmoney.com/api/qt/stock/get"
+    def request_url(self, task: Any) -> str:
+        if task.task_type == "symbol_list":
+            return EASTMONEY_STOCK_LIST_API_URL
         if task.task_type == "daily_bar":
-            params.setdefault("secid", "1.600000")
-            params.setdefault("fields1", "f1,f2,f3,f4,f5,f6")
-            params.setdefault(
-                "fields2",
-                "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
-            )
-            params.setdefault("klt", "101")
-            params.setdefault("fqt", "1")
-            params.setdefault("end", "20500101")
-            params.setdefault("lmt", "1")
-        else:
-            url = EASTMONEY_STOCK_LIST_API_URL
-            params.setdefault("pn", "1")
-            params.setdefault("pz", "100")
-            params.setdefault("po", "1")
-            params.setdefault("np", "1")
-            params.setdefault("fltt", "2")
-            params.setdefault("invt", "2")
-            params.setdefault("fid", "f3")
-            params.setdefault("fs", "m:105")
-        return RequestSpec(
-            method="GET",
-            url=url,
-            params=params,
-            headers={"User-Agent": "Hermes-WebsiteAgent/1.0"},
-        )
+            return EASTMONEY_STOCK_KLINE_API_URL
+        raise ValueError(f"Unsupported Eastmoney task type: {task.task_type!r}")
+
+    def fetch(self, task: Any) -> list[dict[str, Any]]:
+        if task.task_type == "symbol_list":
+            exchange = task.params.get("exchange", "US")
+            return self.fetch_stock_list(exchange)
+        if task.task_type != "daily_bar":
+            raise ValueError(f"Unsupported Eastmoney task type: {task.task_type!r}")
+        params = {
+            "secid": task.params.get("secid", "1.600000"),
+            "fields1": "f1,f2,f3,f4,f5,f6",
+            "fields2": _EASTMONEY_FIELDS,
+            "klt": "101",
+            "fqt": "1",
+            "end": task.params.get("end", "20500101"),
+            "lmt": str(task.params.get("lmt", "1")),
+        }
+        if "start_date" in task.params:
+            params["beg"] = task.params["start_date"]
+        response = self.get(EASTMONEY_STOCK_KLINE_API_URL, params=params)
+        return self.parse(response)
 
     def parse(self, response: Any) -> list[dict[str, Any]]:
         payload = response.json()

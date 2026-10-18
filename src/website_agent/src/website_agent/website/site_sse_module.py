@@ -6,13 +6,15 @@ The parser prefers a DOM-based extraction (BeautifulSoup) and falls back to
 a regex-based heuristic when structure differs.
 """
 
-from typing import List, Dict, Optional
 import json
 import logging
 import re
+from typing import Any, Dict, List
 
 from bs4 import BeautifulSoup
 
+from website_agent.http_utils.client import HttpClient
+from website_agent.website.agent import BaseSite
 
 def _looks_like_stock_name(value: str) -> bool:
     """Return True when a parsed value looks like a real stock name."""
@@ -39,8 +41,6 @@ def _looks_like_stock_name(value: str) -> bool:
         return False
 
     return True
-
-from website_agent.http_utils.client import HttpClient
 
 logger = logging.getLogger("website_agent.website.sse")
 
@@ -298,20 +298,39 @@ def _normalize_sse_list_date(value: object) -> str | None:
 
 
 
-class SseSiteClient(HttpClient):
-    """Site client for Shanghai Stock Exchange pages, built on HttpClient.
+class SseSiteClient(BaseSite):
+    """SSE site adapter that owns HTTP sessions and stock-list scraping."""
 
-    Provides a convenience method `fetch_stock_list()` that fetches the public
-    listing page and returns a cleaned list suitable for database insertion.
-    """
+    name = "sse"
+    priority = 10
 
-    def __init__(self, *args, **kwargs):
-        """Create an SSE site client.
+    def __init__(
+        self,
+        config: Any | None = None,
+        http_clients: dict[str, HttpClient] | None = None,
+        **client_options: Any,
+    ) -> None:
+        client_options.setdefault("timeout", 30.0)
+        client_options.setdefault(
+            "base_headers",
+            {
+                "User-Agent": "Mozilla/5.0 Hermes SSE stock-list fetcher",
+                "Referer": "https://www.sse.com.cn/assortment/stock/list/share/",
+            },
+        )
+        super().__init__(config, http_clients, **client_options)
 
-        URL is provided to each fetch method rather than at construction time,
-        because different fetch functions may target different pages or APIs.
-        """
-        super().__init__(*args, **kwargs)
+    def supports(self, task_type: str) -> bool:
+        return task_type in {"symbol_list", "stock_list"}
+
+    def request_url(self, task: Any) -> str:
+        url = task.params.get("url", SSE_STOCK_LIST_API_URL)
+        if not isinstance(url, str) or not url:
+            raise ValueError("SSE stock-list task requires a valid URL.")
+        return url
+
+    def fetch(self, task: Any) -> List[Dict]:
+        return self.fetch_stock_list(self.request_url(task))
 
     def fetch_stock_list(self, url: str) -> List[Dict]:
         """Download SSE stock listings and return extracted records.

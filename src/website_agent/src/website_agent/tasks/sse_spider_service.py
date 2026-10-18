@@ -8,9 +8,9 @@ Configuration via environment variables:
 - REDIS_URL (default redis://redis:6379/0)
 - REDIS_STREAM_NAME (default market:listings:sse)
 
-The service uses the existing SseSiteClient to fetch records and publishes each
-record as an Event onto RedisEventBus.xadd (stream) and also publishes Pub/Sub
-notifications via publish for consumers.
+The service registers SseSiteClient with WebsiteAgent, fetches the SSE list in
+response to a task, then publishes the completed result to Redis Pub/Sub and a
+durable stream.
 """
 from __future__ import annotations
 
@@ -18,11 +18,11 @@ import os
 import time
 import json
 import logging
-from typing import Iterable
 
-from website_agent.website.site_sse_module import SseSiteClient
 from event_engine.event import Event
 from event_engine.event_bus import RedisEventBus
+from website_agent.website.agent import WebsiteAgent
+from website_agent.website.site_sse_module import SseSiteClient
 
 # Lazy import redis to avoid hard requirement during unit tests
 try:
@@ -72,16 +72,18 @@ class RedisClientWrapper:
         return self._client.pubsub()
 
 
-def records_to_events(records: Iterable[dict]) -> Iterable[Event]:
+def records_to_events(records) -> list[Event]:
+    events = []
     for r in records:
         code = r.get("code")
         name = r.get("name")
         meta = {k: v for k, v in r.items() if k not in ("code", "name")}
         ev = Event.create("market.listing.sse", source="sse_spider", event_data={"code": code, "name": name, "meta": meta})
-        yield ev
+        events.append(ev)
+    return events
 
 
-def publish_records_to_redis(records: Iterable[dict], redis_client_url: str, stream_name: str) -> int:
+def publish_records_to_redis(records, redis_client_url: str, stream_name: str) -> int:
     client = RedisClientWrapper(redis_client_url)
     bus = RedisEventBus(client)
     count = 0
@@ -108,12 +110,45 @@ def publish_records_to_redis(records: Iterable[dict], redis_client_url: str, str
 
 
 def run_once_and_publish() -> int:
-    client = SseSiteClient()
-    records = client.fetch_stock_list(SSE_LIST_URL)
-    logger.info("Fetched %d records from SSE", len(records))
-    published = publish_records_to_redis(records, REDIS_URL, REDIS_STREAM)
-    logger.info("Published %d records to Redis", published)
-    return published
+    redis_client = RedisClientWrapper(REDIS_URL)
+    bus = RedisEventBus(redis_client)
+    published_rows = 0
+
+    def publish_event(event: Event) -> None:
+        nonlocal published_rows
+        bus.publish(event)
+        redis_client.xadd(
+            REDIS_STREAM,
+            {
+                "event_id": event.event_id,
+                "event_type": event.event_type,
+                "source": event.source,
+                "timestamp": str(event.timestamp),
+                "event_data": json.dumps(event.event_data, ensure_ascii=False),
+            },
+        )
+        if event.event_type == "data.task.finished":
+            published_rows = int(event.event_data.get("rows_count", 0))
+
+    agent = WebsiteAgent(publisher=publish_event)
+    agent.register(SseSiteClient())
+    request_event = Event.create(
+        "data.fetch.requested",
+        "sse_spider",
+        {
+            "task": {
+                "task_type": "symbol_list",
+                "params": {"url": SSE_LIST_URL},
+            }
+        },
+    )
+    try:
+        agent.on_fetch_requested(request_event)
+    finally:
+        agent.close()
+
+    logger.info("Published %d SSE stock records to Redis", published_rows)
+    return published_rows
 
 
 def main_loop():

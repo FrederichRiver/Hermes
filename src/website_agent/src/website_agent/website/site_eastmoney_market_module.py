@@ -4,8 +4,10 @@ from collections.abc import Mapping
 from datetime import date
 import json
 import re
+from typing import Any
 
 from website_agent.http_utils.client import HttpClient
+from website_agent.website.agent import BaseSite
 
 
 EASTMONEY_MARKET_KLINE_API_URL = (
@@ -88,8 +90,45 @@ def parse_eastmoney_market_daily_klines(
     return records
 
 
-class EastmoneyMarketSiteClient(HttpClient):
+class EastmoneyMarketSiteClient(BaseSite):
     """Fetch normalized daily gold and foreign-exchange prices from Eastmoney."""
+
+    name = "eastmoney-market"
+    priority = 50
+
+    def __init__(
+        self,
+        config: Any | None = None,
+        http_clients: dict[str, HttpClient] | None = None,
+        **client_options: Any,
+    ) -> None:
+        super().__init__(config, http_clients, **client_options)
+
+    def supports(self, task_type: str) -> bool:
+        return task_type in {"gold_daily", "forex_daily"}
+
+    def request_url(self, task: Any) -> str:
+        if task.task_type not in {"gold_daily", "forex_daily"}:
+            raise ValueError(f"Unsupported market task type: {task.task_type!r}")
+        return EASTMONEY_MARKET_KLINE_API_URL
+
+    def fetch(self, task: Any) -> list[dict[str, str]]:
+        params = task.params
+        start_date = _coerce_task_date(params.get("start_date"), "start_date")
+        end_date = _coerce_task_date(params.get("end_date"), "end_date")
+        if task.task_type == "gold_daily":
+            return self.fetch_gold_daily_prices(
+                symbol=params.get("symbol", "XAU"),
+                start_date=start_date,
+                end_date=end_date,
+            )
+        if task.task_type == "forex_daily":
+            return self.fetch_forex_daily_prices(
+                currency_pair=params.get("currency_pair", "USDCNH"),
+                start_date=start_date,
+                end_date=end_date,
+            )
+        raise ValueError(f"Unsupported market task type: {task.task_type!r}")
 
     def fetch_gold_daily_prices(
         self,
@@ -167,3 +206,14 @@ class EastmoneyMarketSiteClient(HttpClient):
             instrument_type,
             instrument_code,
         )
+
+
+def _coerce_task_date(value: Any, name: str) -> date | None:
+    if value is None or isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return date.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError(f"{name} must be an ISO date.") from exc
+    raise ValueError(f"{name} must be a date or ISO date string.")
