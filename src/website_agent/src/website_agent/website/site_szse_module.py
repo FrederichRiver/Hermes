@@ -5,6 +5,7 @@ import re
 from typing import Any, Dict, List
 
 from website_agent.http_utils.client import HttpClient
+from website_agent.http_utils.user_agent import SZSE_USER_AGENT
 from website_agent.website.agent import BaseSite
 
 
@@ -197,14 +198,14 @@ class SzseSiteClient(BaseSite):
     def __init__(
         self,
         config: Any | None = None,
-        http_clients: dict[str, HttpClient] | None = None,
+        http_clients: list[HttpClient] | None = None,
         **client_options: Any,
     ) -> None:
         client_options.setdefault("timeout", 30.0)
         client_options.setdefault(
             "base_headers",
             {
-                "User-Agent": "Mozilla/5.0 Hermes SZSE stock-list fetcher",
+                "User-Agent": SZSE_USER_AGENT,
                 "Referer": "https://www.szse.cn/index/index.html",
             },
         )
@@ -255,7 +256,7 @@ class SzseSiteClient(BaseSite):
         for tab_key in _SZSE_STOCK_LIST_TABS:
             page_number = 1
             while True:
-                response = self.get(
+                response = self._http_clients[0].get(
                     url,
                     params={
                         **_SZSE_STOCK_LIST_PARAMETERS,
@@ -322,7 +323,7 @@ class SzseSiteClient(BaseSite):
         records = []
         page_number = 1
         while True:
-            response = self.get(
+            response = self._http_clients[0].get(
                 url,
                 params={
                     **base_parameters,

@@ -131,7 +131,7 @@ class EastmoneySiteClient(BaseSite):
     def __init__(
         self,
         config: Any | None = None,
-        http_clients: dict[str, HttpClient] | None = None,
+        http_clients: list[HttpClient] | None = None,
         **http_options: Any,
     ) -> None:
         super().__init__(config, http_clients, **http_options)
@@ -166,7 +166,10 @@ class EastmoneySiteClient(BaseSite):
         }
         if "start_date" in task.params:
             params["beg"] = task.params["start_date"]
-        response = self.get(EASTMONEY_STOCK_KLINE_API_URL, params=params)
+        response = self._http_clients[0].get(
+            EASTMONEY_STOCK_KLINE_API_URL,
+            params=params,
+        )
         return self.parse(response)
 
     def parse(self, response: Any) -> list[dict[str, Any]]:
@@ -206,7 +209,7 @@ class EastmoneySiteClient(BaseSite):
         result_page_number = 1
         result_page_count: int | None = None
         while result_page_count is None or result_page_number <= result_page_count:
-            response = self.get(
+            response = self._http_clients[0].get(
                 EASTMONEY_STOCK_LIST_API_URL,
                 params={
                     "pn": str(result_page_number),
@@ -260,7 +263,7 @@ class EastmoneySiteClient(BaseSite):
             ValueError: The indexed code is invalid or Eastmoney has no data.
         """
         result_secid = _to_eastmoney_security_id(stock_code)
-        response = self.get(
+        response = self._http_clients[0].get(
             EASTMONEY_STOCK_KLINE_API_URL,
             params={
                 "secid": result_secid,
@@ -288,7 +291,7 @@ class EastmoneySiteClient(BaseSite):
             raise ValueError("start_date must not be after end_date.")
 
         result_secid = _to_eastmoney_security_id(stock_code)
-        response = self.get(
+        response = self._http_clients[0].get(
             EASTMONEY_STOCK_KLINE_API_URL,
             params={
                 "secid": result_secid,

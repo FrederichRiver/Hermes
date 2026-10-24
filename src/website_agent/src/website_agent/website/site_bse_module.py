@@ -3,11 +3,12 @@
 from typing import Any, Dict, List
 
 from website_agent.http_utils.client import HttpClient
+from website_agent.http_utils.user_agent import BSE_USER_AGENT
 
-from .site_sse_module import SseSiteClient
+from .site_sse import SiteSSE
 
 
-class BseSiteClient(SseSiteClient):
+class BseSiteClient(SiteSSE):
     """Fetch and normalize Beijing Stock Exchange listing records."""
 
     name = "bse"
@@ -16,13 +17,13 @@ class BseSiteClient(SseSiteClient):
     def __init__(
         self,
         config: Any | None = None,
-        http_clients: dict[str, HttpClient] | None = None,
+        http_clients: list[HttpClient] | None = None,
         **client_options: Any,
     ) -> None:
         client_options.setdefault(
             "base_headers",
             {
-                "User-Agent": "Mozilla/5.0 Hermes BSE stock-list fetcher",
+                "User-Agent": BSE_USER_AGENT,
                 "Referer": "https://www.bse.cn/nq/listedcompany.html",
             },
         )
@@ -34,9 +35,12 @@ class BseSiteClient(SseSiteClient):
             raise ValueError("BSE stock-list task requires a valid URL.")
         return url
 
-    def fetch_stock_list(self, url: str) -> List[Dict]:
+    def supports(self, task_type: str) -> bool:
+        return task_type in {"symbol_list", "stock_list"}
+
+    def _fetch_stock_list_from_url(self, url: str) -> List[Dict]:
         """Download a Beijing stock list and mark each record as ``BZ``."""
-        result_list = super().fetch_stock_list(url)
+        result_list = super()._fetch_stock_list_from_url(url)
         for result_record in result_list:
             result_record["exchange"] = "BZ"
         return result_list

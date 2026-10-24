@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -10,12 +9,14 @@ from event_engine.event import Event
 
 from website_agent.http_utils.client import HttpClient, HttpFatalError
 from website_agent.http_utils.robots import RobotsChecker
+from utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 class BaseSite(ABC):
-    """Site adapter that owns one or more HTTP clients."""
+    """Site adapter that owns an ordered list of HTTP clients."""
 
     name: str = "base"
     priority: int = 100
@@ -23,7 +24,7 @@ class BaseSite(ABC):
     def __init__(
         self,
         config: Any | None = None,
-        http_clients: dict[str, HttpClient] | None = None,
+        http_clients: list[HttpClient] | None = None,
         **client_options: Any,
     ) -> None:
         if http_clients is not None and client_options:
@@ -33,16 +34,18 @@ class BaseSite(ABC):
         self._config = config
         if http_clients is None:
             client_options.setdefault("rate", self.rate_limit())
-            self._http_clients = {"default": HttpClient(**client_options)}
+            self._http_clients = [HttpClient(**client_options)]
         else:
+            if not isinstance(http_clients, list):
+                raise TypeError("http_clients must be a list of HttpClient objects.")
             if not http_clients:
                 raise ValueError("At least one HTTP client is required.")
             if any(
                 not isinstance(client, HttpClient)
-                for client in http_clients.values()
+                for client in http_clients
             ):
                 raise TypeError("Every site HTTP client must be an HttpClient.")
-            self._http_clients = dict(http_clients)
+            self._http_clients = list(http_clients)
 
     @abstractmethod
     def supports(self, task_type: str) -> bool:
@@ -62,94 +65,10 @@ class BaseSite(ABC):
     def auth(self) -> dict[str, Any]:
         return {}
 
-    def http_client(self, name: str = "default") -> HttpClient:
-        """Return a named HTTP client owned by this site."""
-        try:
-            return self._http_clients[name]
-        except KeyError as exc:
-            raise ValueError(f"No HTTP client named {name!r} is registered.") from exc
-
-    @property
-    def session(self) -> Any:
-        """Expose the default client's session for legacy site integrations."""
-        return self.http_client().session
-
-    @session.setter
-    def session(self, value: Any) -> None:
-        self.http_client().session = value
-
-    @property
-    def timeout(self) -> float:
-        """Expose the default client's request timeout."""
-        return self.http_client().timeout
-
-    @timeout.setter
-    def timeout(self, value: float) -> None:
-        self.http_client().timeout = value
-
-    def get(
-        self,
-        url: str,
-        params: dict[str, Any] | None = None,
-        *,
-        client_name: str = "default",
-        **request_options: Any,
-    ) -> Any:
-        """Send a GET request through one of this site's HTTP clients."""
-        return self.http_client(client_name).get(
-            url,
-            params=params,
-            **request_options,
-        )
-
-    def post(
-        self,
-        url: str,
-        data: Any = None,
-        json: Any = None,
-        *,
-        client_name: str = "default",
-        **request_options: Any,
-    ) -> Any:
-        return self.http_client(client_name).post(
-            url,
-            data=data,
-            json=json,
-            **request_options,
-        )
-
-    def get_text(
-        self,
-        url: str,
-        params: dict[str, Any] | None = None,
-        *,
-        client_name: str = "default",
-        **request_options: Any,
-    ) -> str:
-        return self.http_client(client_name).get_text(
-            url,
-            params=params,
-            **request_options,
-        )
-
-    def get_json(
-        self,
-        url: str,
-        params: dict[str, Any] | None = None,
-        *,
-        client_name: str = "default",
-        **request_options: Any,
-    ) -> Any:
-        return self.http_client(client_name).get_json(
-            url,
-            params=params,
-            **request_options,
-        )
-
     def close(self) -> None:
         """Close every distinct HTTP client held by this site."""
         closed_clients: set[int] = set()
-        for client in self._http_clients.values():
+        for client in self._http_clients:
             if id(client) not in closed_clients:
                 client.close()
                 closed_clients.add(id(client))
@@ -304,16 +223,13 @@ class WebsiteAgent:
                 final_site = site
                 self._record_failure(site)
                 logger.warning(
-                    "Website fetch failed for %s via %s: %s",
-                    task.task_id,
-                    site.name,
-                    exc,
+                    f"Website fetch failed for {task.task_id} via {site.name}: {exc}"
                 )
                 continue
 
         if last_error is not None:
             self._emit_error(task, last_error, final_site)
-            logger.error("Website fetch failed for %s: %s", task.task_id, last_error)
+            logger.error(f"Website fetch failed for {task.task_id}: {last_error}")
             return
 
         self._emit_error(task, RuntimeError("No compatible site available"), None)

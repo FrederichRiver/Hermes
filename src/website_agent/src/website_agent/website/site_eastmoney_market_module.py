@@ -99,7 +99,7 @@ class EastmoneyMarketSiteClient(BaseSite):
     def __init__(
         self,
         config: Any | None = None,
-        http_clients: dict[str, HttpClient] | None = None,
+        http_clients: list[HttpClient] | None = None,
         **client_options: Any,
     ) -> None:
         super().__init__(config, http_clients, **client_options)
@@ -200,7 +200,10 @@ class EastmoneyMarketSiteClient(BaseSite):
             parameters["beg"] = start_date.strftime("%Y%m%d")
             parameters["end"] = end_date.strftime("%Y%m%d")
 
-        response = self.get(EASTMONEY_MARKET_KLINE_API_URL, params=parameters)
+        response = self._http_clients[0].get(
+            EASTMONEY_MARKET_KLINE_API_URL,
+            params=parameters,
+        )
         return parse_eastmoney_market_daily_klines(
             response.text,
             instrument_type,
