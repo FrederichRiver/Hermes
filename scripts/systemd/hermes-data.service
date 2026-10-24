@@ -10,7 +10,7 @@ Group=root
 WorkingDirectory=/opt/application
 EnvironmentFile=/etc/hermes/data-service.env
 Environment=PYTHONUNBUFFERED=1
-Environment=PYTHONPATH=/opt/application/src/utils/src:/opt/application/src/website_agent/src
+Environment=PYTHONPATH=/opt/application/src
 ExecStart=/opt/application/venv/bin/python3 /opt/application/src/data_service.py
 Restart=on-failure
 RestartSec=5

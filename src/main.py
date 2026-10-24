@@ -71,7 +71,7 @@ def _start_application() -> int:
     on systems where the full runtime isn't available.
     """
     # Lazy imports so 'help' doesn't fail if optional packages aren't installed.
-    from utils.logging import configure_logging, get_logger
+    from basic_utils.logging import configure_logging, get_logger
 
     configure_logging()
     logger = get_logger(__name__)

@@ -21,7 +21,7 @@ import json
 
 from event_engine.event import Event
 from event_engine.event_bus import RedisEventBus
-from utils.logging import configure_logging, get_logger
+from basic_utils.logging import configure_logging, get_logger
 from website_agent.website.agent import WebsiteAgent
 from website_agent.website.site_sse import SiteSSE
 

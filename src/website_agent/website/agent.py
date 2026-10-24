@@ -9,7 +9,7 @@ from event_engine.event import Event
 
 from website_agent.http_utils.client import HttpClient, HttpFatalError
 from website_agent.http_utils.robots import RobotsChecker
-from utils.logging import get_logger
+from basic_utils.logging import get_logger
 
 
 logger = get_logger(__name__)

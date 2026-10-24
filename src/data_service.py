@@ -9,7 +9,7 @@ import threading
 from types import FrameType
 from typing import Any
 
-from utils.logging import configure_logging, get_logger
+from basic_utils.logging import configure_logging, get_logger
 
 
 logger = get_logger(__name__)

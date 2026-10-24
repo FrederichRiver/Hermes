@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping
 
 from event_engine.event import Event
 from event_engine.event_bus import EventBus
-from utils.logging import get_logger
+from basic_utils.logging import get_logger
 
 from .mysql_meta import MySQLDB
 from .stock_tables import StockDailyBarEntity, StockIndexEntity

@@ -36,7 +36,7 @@
 - Python 解释器：`/opt/application/venv/bin/python3`。
 - 服务单元中的 `ExecStart` 必须以前台方式运行对应入口。
 - systemd 主机上必须实际存在上述源码和解释器路径。Docker 容器内没有 `systemctl` 时，应由宿主机的服务管理方案启动进程；不得在容器中假定 systemd 可用。
-- `PYTHONPATH` 应包含公共工具源码路径 `/opt/application/src/utils/src`；DataAgent 还需包含 `/opt/application/src/website_agent/src`。
+- `PYTHONPATH` 应包含源码根目录 `/opt/application/src`，其中直接包含 `basic_utils`、`event_engine`、`data_agent`、`time_agent` 和 `website_agent` 包。
 - 服务收到 `SIGTERM` 或 `SIGINT` 后停止工作并关闭对应 Redis、Pub/Sub 和数据库资源。
 
 ## 环境变量和敏感信息
@@ -46,10 +46,11 @@
 - 邮件确认功能使用 `SMTP_*`、`IMAP_*` 环境变量；调用方应使用 `SmtpSettings.from_env()` 和 `ImapSettings.from_env()`。目前没有邮件服务入口自动加载这些设置。
 - 生产凭据应保存在权限受限的环境文件或密钥管理系统中，不得写入源码、已跟踪的 `.env` 文件、systemd 单元或日志。
 - Docker Compose 的变量插值需从宿主环境或显式指定的外部 `--env-file` 取得；容器 `env_file` 不会为 Compose 文件本身提供插值变量。
+- Docker 环境变量生成脚本为 Ubuntu、Redis 和 Apache Compose 创建权限受限的 `.env.secrets`；启动 Ubuntu/Redis 时仍须使用 `docker compose --env-file .env.secrets`，修改环境后重建对应容器才能应用。
 
 ## 日志
 
-服务入口使用共享的 `utils.logging` 配置根 logger，将日志写入标准输出；systemd/journald 负责收集和查询日志。应用不创建本地日志文件或轮转文件。
+服务入口使用共享的 `basic_utils.logging` 配置根 logger，将日志写入标准输出；systemd/journald 负责收集和查询日志。应用不创建本地日志文件或轮转文件。
 
 ## 验收要求
 

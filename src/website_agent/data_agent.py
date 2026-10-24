@@ -20,8 +20,8 @@ class DataAgent:
 # Module-level synchronous scraper functions for scheduler to call
 from website_agent.http_utils.client import HttpClient
 from website_agent.http_utils.user_agent import DATA_AGENT_USER_AGENT
-from utils.logging import get_logger
-from utils.parser import (
+from basic_utils.logging import get_logger
+from basic_utils.parser import (
     extract_codes_from_text,
     parse_sse_html,
     parse_szse_html,

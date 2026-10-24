@@ -8,7 +8,7 @@ Group=root
 WorkingDirectory=/opt/application
 EnvironmentFile=/etc/hermes/redis.env
 Environment=PYTHONUNBUFFERED=1
-Environment=PYTHONPATH=/opt/application/src/utils/src
+Environment=PYTHONPATH=/opt/application/src
 ExecStart=/opt/application/venv/bin/python3 /opt/application/src/time_agent_service.py
 Restart=on-failure
 RestartSec=5

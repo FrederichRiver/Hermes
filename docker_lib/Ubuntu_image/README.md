@@ -26,13 +26,34 @@ GT 720 (Kepler 架构，Compute Capability 3.5) 的限制比较苛刻。较新�
 
 ## 环境隔离与配置解耦
 遵循配置解耦的原则，本项目将环境变量（如时区设置 `TZ=Asia/Shanghai` 或未来的 API Keys 等）从 `Dockerfile` 中剥离。
-请在运行前复制环境变量映射文件：
-```bash
-cp .env.example .env
-```
-随后修改 `.env` 并在其中填入相关的属性。
+非敏感的基础设置保留在本目录 `.env`；应用运行配置由下文的脚本生成到独立 `.env.secrets` 文件中。
 
 ## 启动指南
+
+### 为 Hermes 容器配置环境变量
+
+在 Linux Docker 主机上从仓库根目录运行：
+
+```bash
+bash scripts/create_docker_env.sh
+```
+
+脚本会在 Ubuntu、Redis 和 Apache Compose 目录分别创建权限为 `600` 的 `.env.secrets`。Redis 密码和 Django `SECRET_KEY` 在未通过同名 shell 环境变量提供时会自动生成；如需配置 MySQL 或邮件凭据，可在运行脚本前导出对应环境变量。已有 `.env.secrets` 不会被覆盖。请勿将生成文件提交到版本控制。
+
+然后分别启动或重建服务，使新变量进入容器：
+
+```bash
+cd docker_lib/Redis_image
+docker compose --env-file .env.secrets up -d --build
+
+cd ../Ubuntu_image
+docker compose --env-file .env.secrets up -d --build
+
+cd ../Apache_image
+docker compose up -d --build
+```
+
+Ubuntu 和 Redis Compose 使用显式 `--env-file` 读取 Redis 凭据用于变量插值；Apache Compose 直接从其 `.env.secrets` 读取 WebUI 配置。邮件配置默认留空；启用邮件功能前需提供相应的 SMTP/IMAP 值。应用和 WebUI 的 MySQL 凭据必须与数据库服务端配置匹配。
 
 ```bash
 # 构建并后台启动开发容器

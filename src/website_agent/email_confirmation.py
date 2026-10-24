@@ -27,7 +27,7 @@ from threading import Event
 from typing import Literal
 from zoneinfo import ZoneInfo
 
-from utils.logging import get_logger
+from basic_utils.logging import get_logger
 
 
 logger = get_logger(__name__)

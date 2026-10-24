@@ -1,6 +1,6 @@
 """Build versioned Hermes package distributions.
 
-Run ``python build_packages.py utils event_engine`` to build selected packages,
+Run ``python build_packages.py config core`` to build selected packages,
 or omit package names to build every installable package. Package versions are
 read from the manually maintained ``package_versions.txt`` file.
 """

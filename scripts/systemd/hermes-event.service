@@ -10,7 +10,7 @@ Group=root
 WorkingDirectory=/opt/application
 EnvironmentFile=/etc/hermes/event-service.env
 Environment=PYTHONUNBUFFERED=1
-Environment=PYTHONPATH=/opt/application/src/utils/src
+Environment=PYTHONPATH=/opt/application/src
 ExecStart=/opt/application/venv/bin/python3 /opt/application/src/event_service.py
 Restart=on-failure
 RestartSec=5

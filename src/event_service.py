@@ -10,7 +10,7 @@ import threading
 from types import FrameType
 from typing import TYPE_CHECKING, Any
 
-from utils.logging import configure_logging, get_logger
+from basic_utils.logging import configure_logging, get_logger
 
 if TYPE_CHECKING:
     from event_engine.event_engine import EventEngine

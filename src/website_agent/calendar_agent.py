@@ -20,7 +20,7 @@ from pathlib import Path
 import json
 from typing import Callable, Dict, List, Optional, Tuple, Any
 
-from utils.logging import get_logger
+from basic_utils.logging import get_logger
 
 
 logger = get_logger(__name__)

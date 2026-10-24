@@ -6,7 +6,7 @@ import math
 import re
 from typing import Any, Dict, List, Type
 
-from utils.logging import get_logger
+from basic_utils.logging import get_logger
 
 from .mysql_meta import MySQLMeta
 from .models import FundNav, StockDailyBar, StockIndexRecord, SymbolInfo

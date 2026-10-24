@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 from website_agent.http_utils.client import HttpClient
 from website_agent.http_utils.user_agent import SSE_USER_AGENT
 from website_agent.website.agent import BaseSite
-from utils.logging import get_logger
+from basic_utils.logging import get_logger
 
 
 logger = get_logger(__name__)
