@@ -18,6 +18,28 @@ services:
     # 引入外部环境变量
     env_file:
       - .env
+    environment:
+      PYTHONPATH: /opt/application/src/utils/src:/opt/application/src/website_agent/src
+      REDIS_URL: ${REDIS_URL:-redis://172.18.0.7:6379/0}
+      REDIS_USERNAME: ${REDIS_USERNAME:?Set REDIS_USERNAME in the Compose environment}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in the Compose environment}
+      SERVER_NAME: ${SERVER_NAME:-Ubuntu_docker}
+      MYSQL_HOST: ${MYSQL_HOST:-172.18.0.2}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_USERNAME: ${MYSQL_USERNAME:-stock}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_SENDER: ${SMTP_SENDER:-}
+      SMTP_RECIPIENT: ${SMTP_RECIPIENT:-}
+      SMTP_USE_STARTTLS: ${SMTP_USE_STARTTLS:-true}
+      IMAP_HOST: ${IMAP_HOST:-}
+      IMAP_PORT: ${IMAP_PORT:-993}
+      IMAP_USERNAME: ${IMAP_USERNAME:-}
+      IMAP_PASSWORD: ${IMAP_PASSWORD:-}
+      IMAP_MAILBOX: ${IMAP_MAILBOX:-INBOX}
 
 networks:
   mysql_network:
