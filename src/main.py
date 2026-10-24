@@ -1,7 +1,6 @@
-﻿#!/opt/application/venv/bin/python3
+#!/opt/application/venv/bin/python3
 """Command-line entry point for the Hermes trading system."""
 
-import logging
 import os
 import signal
 import sys
@@ -9,78 +8,23 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
-import event
-
-
-
 _COMMAND_HELP = """Usage: python main.py <command>
 
 Commands:
-    start  Start Hermes. Unix starts as a daemon; Windows stays in the foreground.
-    stop   Stop the running Hermes process.
-    clear  Clear log files in the log directory.
+    start  Run the EventEngine in the foreground.
     help   Show this help message.
+
+Use the dedicated systemd services to manage deployed modules.
 """
-_PID_FILE_NAME = "hermes.pid"
 
 
 def _load_help_text() -> str:
-    """Load help text from Help.txt.
-
-    Attempts to read Help.txt from the application directory (preferred), then
-    the script directory. If neither exists or is unreadable, returns the
-    default embedded help text above.
-    """
-    candidates = [
-        _APPLICATION_DIRECTORY / "Help.txt",
-        Path(__file__).resolve().parent / "Help.txt",
-    ]
-    for p in candidates:
-        try:
-            if p.exists() and p.is_file():
-                return p.read_text(encoding="utf-8")
-        except Exception:
-            # ignore read errors and try next candidate
-            continue
-    # Fallback to the embedded short help
+    """Return the embedded command help text."""
     return _COMMAND_HELP
 
+
 _APPLICATION_DIRECTORY = Path("/opt/application")
-_LOG_DIRECTORY = _APPLICATION_DIRECTORY / "log"
 _DATABASE_DIRECTORY = _APPLICATION_DIRECTORY / "database"
-_PID_DIRECTORY = Path("/tmp")
-
-
-def _get_log_directory() -> Path:
-    """Return the directory used for application logs and scheduler data."""
-    return _LOG_DIRECTORY
-
-
-def _clear_logs() -> int:
-    """Truncate log files in the log directory. Returns number of files cleared."""
-    log_dir = _get_log_directory()
-    cleared = 0
-    try:
-        if not log_dir.exists():
-            return 0
-        for p in log_dir.iterdir():
-            if p.is_file():
-                try:
-                    # Truncate file
-                    with open(p, "w", encoding="utf-8"):
-                        pass
-                    cleared += 1
-                except Exception:
-                    # ignore unreadable files
-                    continue
-    except Exception:
-        return 0
-    return cleared
-
-
-def _get_pid_file() -> Path:
-    """Return the PID file path for the Hermes process."""
-    return _PID_DIRECTORY / _PID_FILE_NAME
 
 
 def _get_database_directory() -> Path:
@@ -91,68 +35,6 @@ def _get_database_directory() -> Path:
 def _get_task_file() -> Path:
     """Return the task configuration file in the application root."""
     return Path(__file__).resolve().parent / "task.json"
-
-
-def _should_daemonize() -> bool:
-    """Return whether the current platform supports Unix daemon startup."""
-    return os.name == "posix"
-
-
-def _read_pid(pid_file: Path) -> int | None:
-    """Return the process ID stored in ``pid_file``, if valid."""
-    try:
-        pid = int(pid_file.read_text(encoding="utf-8").strip())
-    except (OSError, ValueError):
-        return None
-    return pid if pid > 0 else None
-
-
-def _is_process_running(pid: int) -> bool:
-    """Return whether a process with ``pid`` is currently running."""
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
-
-
-def _remove_pid_file(pid_file: Path) -> None:
-    """Remove the PID file only when it belongs to this process."""
-    if _read_pid(pid_file) == os.getpid():
-        pid_file.unlink(missing_ok=True)
-
-
-def daemonize() -> None:
-    """Detach the current process using the standard Unix double-fork pattern."""
-    try:
-        pid = os.fork()
-        if pid > 0:
-            sys.exit(0)
-    except OSError as exc:
-        raise RuntimeError(
-            f"First daemon fork failed: {exc.errno} ({exc.strerror})"
-        ) from exc
-
-    os.setsid()
-
-    try:
-        pid = os.fork()
-        if pid > 0:
-            sys.exit(0)
-    except OSError as exc:
-        raise RuntimeError(
-            f"Second daemon fork failed: {exc.errno} ({exc.strerror})"
-        ) from exc
-
-    sys.stdout.flush()
-    sys.stderr.flush()
-    with open(os.devnull, "r", encoding="utf-8") as null_input:
-        os.dup2(null_input.fileno(), sys.stdin.fileno())
-    with open(os.devnull, "a", encoding="utf-8") as null_output:
-        os.dup2(null_output.fileno(), sys.stdout.fileno())
-        os.dup2(null_output.fileno(), sys.stderr.fileno())
 
 
 def _stop_on_signal(_signum: int, _frame: object) -> None:
@@ -167,19 +49,16 @@ def _build_event_bus() -> object:
     event_bus_type = "redis"
 
     if event_bus_type == "redis":
-        redis_config = {
-            "host": "172.18.0.7",
-            "port": 6379,
-            "db": 0,
-            "username": "fred",
-            "password": "fred14great",
-            "decode_responses": True,
-            "socket_connect_timeout": 5,
-            "socket_timeout": 5,
-        }
         import redis
 
-        redis_client = redis.Redis(**redis_config)
+        redis_client = redis.Redis.from_url(
+            os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
+            username=os.environ["REDIS_USERNAME"],
+            password=os.environ["REDIS_PASSWORD"],
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+        )
         return RedisEventBus(redis_client)
     else:
         return InMemoryEventBus()
@@ -192,42 +71,21 @@ def _start_application() -> int:
     on systems where the full runtime isn't available.
     """
     # Lazy imports so 'help' doesn't fail if optional packages aren't installed.
-    from utils.logging_config import log_error, setup_logging
-    from utils.logmonitor import start_log_monitor
+    from utils.logging import configure_logging, get_logger
 
-    log_directory = _get_log_directory()
-    pid_file = _get_pid_file()
-    existing_pid = _read_pid(pid_file)
-
-    if existing_pid and _is_process_running(existing_pid):
-        print(f"Hermes is already running with PID {existing_pid}.")
-        return 1
-    if existing_pid:
-        pid_file.unlink(missing_ok=True)
-
-    log_file = setup_logging(log_directory)
-    logger = logging.getLogger(__name__)
-    if _should_daemonize():
-        daemonize()
-
-    pid_file.write_text(str(os.getpid()), encoding="utf-8")
+    configure_logging()
+    logger = get_logger(__name__)
     signal.signal(signal.SIGTERM, _stop_on_signal)
-    monitor_stop_event, monitor_thread = start_log_monitor(log_file)
-    print(f"Hermes started with PID {os.getpid()}.")
-    logger.info("Hermes started with PID %s.", os.getpid())
+    logger.info(f"Hermes started with PID {os.getpid()}.")
 
     event_engine = None
-    event_bus = None
     try:
-        # Prefer a pluggable transport for the EventEngine while keeping the
-        # lightweight in-memory implementation available as the default path.
         from event_engine.event_engine import EventEngine
 
         event_bus = _build_event_bus()
         event_engine = EventEngine(bus=event_bus)
         event_engine.start()
 
-        # Persist the startup event in a Redis Stream so the event bus can be verified.
         startup_event = event_engine.emit(
             "hermes.system.startup",
             {"pid": os.getpid()},
@@ -236,64 +94,24 @@ def _start_application() -> int:
             "hermes:events",
             startup_event.to_envelope(),
         )
-        print(f"Startup event stored in hermes:events with ID {stream_entry_id}.")
-        logger.info(
-            "Startup event stored in hermes:events with ID %s.",
-            stream_entry_id,
-        )
+        logger.info(f"Startup event stored in hermes:events with ID {stream_entry_id}.")
 
-        # Simple run loop; the event engine operates via handlers and the bus.
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("Hermes stopping.")
         logger.info("Hermes stopping.")
     except Exception:
-        log_error("Hermes stopped because of an unexpected error.", __name__, exc_info=True)
+        logger.exception("Hermes stopped because of an unexpected error.")
         return 1
     finally:
-        monitor_stop_event.set()
-        monitor_thread.join(timeout=1)
-        # No scheduler to shut down anymore; ensure event engine is stopped.
         if event_engine is not None:
             event_engine.stop()
-        _remove_pid_file(pid_file)
 
-    return 0
-
-
-def _stop_application() -> int:
-    """Request graceful termination of the process recorded in the PID file."""
-    pid_file = _get_pid_file()
-    pid = _read_pid(pid_file)
-    if pid is None:
-        print("Hermes is not running.")
-        return 1
-
-    if not _is_process_running(pid):
-        pid_file.unlink(missing_ok=True)
-        print("Removed stale Hermes PID file.")
-        return 0
-
-    from utils.logging_config import log_error, setup_logging
-
-    setup_logging(_get_log_directory())
-    try:
-        os.kill(pid, signal.SIGTERM)
-    except OSError as exc:
-        log_error(f"Unable to stop Hermes process {pid}: {exc}", __name__)
-        return 1
-
-    print(f"Stop request sent to Hermes process {pid}.")
-    logging.getLogger(__name__).info(
-        "Stop request sent to Hermes process %s.",
-        pid,
-    )
     return 0
 
 
 def main(arguments: Sequence[str] | None = None) -> int:
-    """Run the requested Hermes lifecycle command.
+    """Run the requested foreground command.
 
     Args:
         arguments: Command arguments without the executable name. Defaults to
@@ -308,15 +126,6 @@ def main(arguments: Sequence[str] | None = None) -> int:
         return 0
     if command_arguments == ["start"]:
         return _start_application()
-    if command_arguments == ["stop"]:
-        return _stop_application()
-    if command_arguments == ["clear"]:
-        n = _clear_logs()
-        if n:
-            print(f"Cleared {n} log file(s) in {_get_log_directory()}")
-        else:
-            print(f"No log files cleared in {_get_log_directory()}")
-        return 0
 
     print(_load_help_text())
     return 1
