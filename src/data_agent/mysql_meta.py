@@ -28,7 +28,7 @@ def resolve_stock_connection(
     return {
         "user": os.getenv("MYSQL_USERNAME", "stock"),
         "password": os.getenv("MYSQL_PASSWORD", ""),
-        "db": database,
+        "database": database,
     }
 
 
@@ -81,7 +81,7 @@ class MySQLMeta:
                 password = ""
                 database = None
 
-                self._cfg = dict(host=host, port=port, user=user, password=password, db=database, charset=charset, cursorclass=pymysql.cursors.DictCursor)
+                self._cfg = dict(host=host, port=port, user=user, password=password, database=database, charset=charset, cursorclass=pymysql.cursors.DictCursor)
                 self._conn: typing.Optional[pymysql.connections.Connection] = None
 
         def connect(self):
@@ -97,7 +97,7 @@ class MySQLMeta:
             connection_cfg = {**self._cfg, **resolve_stock_connection()}
             logger.debug(
                 f"Opening MySQL connection to {connection_cfg['host']}:"
-                f"{connection_cfg['port']} db={connection_cfg['db']}"
+                f"{connection_cfg['port']} db={connection_cfg['database']}"
             )
             self._conn = pymysql.connect(**connection_cfg)
             return self._conn

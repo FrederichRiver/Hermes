@@ -10,10 +10,10 @@ from types import FrameType
 from typing import Any
 
 from basic_utils.logging import configure_logging, get_logger
+from event_service import create_redis_event_bus
 
 
 logger = get_logger(__name__)
-_DEFAULT_REDIS_URL = "redis://localhost:6379/0"
 _STOCK_DATABASE = "stock_data"
 
 
@@ -22,7 +22,6 @@ def main() -> int:
     configure_logging()
 
     shutdown_requested = threading.Event()
-    redis_client: Any | None = None
     redis_event_bus: Any | None = None
     mysql_db: Any | None = None
     data_agent: Any | None = None
@@ -36,32 +35,22 @@ def main() -> int:
         for signum in (signal.SIGTERM, signal.SIGINT):
             previous_handlers[signum] = signal.signal(signum, request_shutdown)
 
-        import redis
         from data_agent.data_agent import DataAgent
         from data_agent.mysql_meta import MySQLDB
-        from event_engine.event_bus import RedisEventBus
 
-        redis_url = os.environ.get("REDIS_URL", _DEFAULT_REDIS_URL)
-        redis_client = redis.Redis.from_url(
-            redis_url,
-            username=os.environ["REDIS_USERNAME"],
-            password=os.environ["REDIS_PASSWORD"],
-            socket_connect_timeout=5,
-            socket_timeout=5,
-        )
-        redis_client.ping()
+        redis_event_bus = create_redis_event_bus(stream_name="data")
+        redis_event_bus.ping()
 
         mysql_db = MySQLDB(
-            host=None,
-            port=None,
-            user=None,
+            host=os.environ["MYSQL_HOST"],
+            port=int(os.environ["MYSQL_PORT"]),
+            user="stock",
             password=None,
             database=_STOCK_DATABASE,
             name=_STOCK_DATABASE,
         )
         mysql_db.connect()
 
-        redis_event_bus = RedisEventBus(redis_client)
         data_agent = DataAgent(
             event_bus=redis_event_bus,
             mysql_dbs={_STOCK_DATABASE: mysql_db},
@@ -76,12 +65,6 @@ def main() -> int:
     except Exception:
         logger.exception("Data service stopped because of an unexpected error.")
     finally:
-        if redis_event_bus is not None:
-            try:
-                redis_event_bus.stop_listener()
-            except Exception:
-                logger.exception("Failed to stop the Redis event listener.")
-                exit_code = 1
         if data_agent is not None:
             try:
                 data_agent.close()
@@ -94,11 +77,11 @@ def main() -> int:
             except Exception:
                 logger.exception("Failed to close the MySQL connection.")
                 exit_code = 1
-        if redis_client is not None:
+        if redis_event_bus is not None:
             try:
-                redis_client.close()
+                redis_event_bus.close()
             except Exception:
-                logger.exception("Failed to close the Redis client.")
+                logger.exception("Failed to close the Redis event bus.")
                 exit_code = 1
         for signum, previous_handler in previous_handlers.items():
             signal.signal(signum, previous_handler)

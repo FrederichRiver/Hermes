@@ -12,17 +12,15 @@
 |---|---|---|
 | `hermes-event.service` | `/opt/application/src/event_service.py` | 启动 EventEngine，并将启动事件写入 Redis Stream |
 | `hermes-data.service` | `/opt/application/src/data_service.py` | 监听数据事件；处理股票列表刷新请求并写入 MySQL |
-| `hermes-time-agent.service` | `/opt/application/src/time_agent_service.py` | 每 5 分钟发布一次股票列表刷新请求 |
+| `hermes-time-agent.service` | `/opt/application/src/time_agent_service.py` | 每分钟向 `time` Stream 发布带 60 秒有效期的时间点事件 |
 
 服务单元文件位于仓库 `scripts/systemd/`。每个单元使用 `Type=simple`，由 systemd 直接跟踪 Python 进程；异常退出策略由 `Restart=on-failure` 控制。
 
-## 股票列表刷新流程
+## TimeAgent 时间点事件流程
 
-1. TimeAgent 每 5 分钟创建 `data.fetch.requested` 事件，任务类型为 `symbol_list`。
-2. TimeAgent 将事件发布到 Redis Pub/Sub，并将同一事件信封写入 `hermes:events` Stream。
-3. DataAgent 监听 `data.fetch.requested`。收到 `symbol_list` 请求后调用 WebsiteAgent 的 `SiteSSE.fetch_stock_code()`。
-4. DataAgent 调用 `stock_data` 数据库中 `stock_index` 表的现有 upsert 操作写入抓取结果。
-5. DataAgent 保留 `data.task.finished` 事件处理，以兼容已有的 WebsiteAgent 完成事件。
+1. TimeAgent 服务启动后等待 1 分钟，之后每隔 1 分钟产生 `time.cycle.timepoint` 事件。
+2. 事件的 `event_data["timepoint"]` 为当前 UTC 时间的 ISO 8601 字符串。
+3. 时间点事件写入名称为 `time` 的 Redis Stream，默认在产生后 60 秒过期并由 EventBus 清理。
 
 抓取、数据校验和数据库事务由对应模块实现；systemd 不参与业务处理。
 

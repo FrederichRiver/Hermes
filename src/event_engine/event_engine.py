@@ -15,7 +15,7 @@ class EventEngine:
     """Lightweight event bus that supports registration, dispatch, and metadata."""
 
     def __init__(self, bus: Optional[EventBus] = None) -> None:
-        self.bus = bus or InMemoryEventBus()
+        self.bus = bus or InMemoryEventBus(stream_name="event")
         self.handlers: Dict[str, list[Callable[[Event], None]]] = defaultdict(list)
         self.running = False
 

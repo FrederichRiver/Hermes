@@ -19,6 +19,7 @@
 9. 服务停止时关闭 Redis Pub/Sub 监听器、DataAgent 管理的数据库连接及 Redis 客户端；初始化或运行异常必须写入日志并以非零状态退出。
 10. 服务日志写入标准输出，由 `journald` 收集。
 11. 不要求部署时安装 `hermes-data-engine` 或 `hermes-data-agent` 分发包；依赖库须已存在于服务使用的 Python 虚拟环境。
+12. Redis 事件总线通过 `event_service.create_redis_event_bus()` 创建；DataAgent 入口通过总线执行 ping，并在服务停止时停止监听器和关闭其内部 Redis 客户端。
 
 ## 源码布局
 

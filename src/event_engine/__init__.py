@@ -13,6 +13,7 @@ from .event_format_error import EventFormatError
 from .event_meta import EventMeta
 from .market_events import MarketEventGenerator
 from .quant_event import QuantEvent
+from .task import TaskMeta
 
 __all__ = [
     "Event",
@@ -26,4 +27,5 @@ __all__ = [
     "QuantEvent",
     "RedisEventBus",
     "RedisEventRecordStore",
+    "TaskMeta",
 ]

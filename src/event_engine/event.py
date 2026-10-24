@@ -5,7 +5,7 @@ import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, ClassVar
 
 from .event_format_error import EventFormatError
 from enum import Enum
@@ -54,6 +54,10 @@ _TYPE_PATTERN = re.compile(r"^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){2}$")
 class Event:
     """Unified event envelope for the Hermes event system.
 
+    New events expire 60 seconds after creation by default. The expiration
+    timestamp is encoded as a UTC Unix millisecond value in transport envelopes.
+    External envelopes may omit it for backward compatibility.
+
     NOTE: field names follow the in-repo 'Note:' annotations. External envelopes
     (wire format) may still use the legacy keys (id/type/ts/data). The class
     accepts both on input and prefers the canonical names on construction.
@@ -66,6 +70,12 @@ class Event:
     event_data: dict[str, Any]
     trace_id: str | None = None
     event_meta: EventMeta = field(default_factory=EventMeta, repr=False)
+    expires_at: int | None = field(
+        default_factory=lambda: Event._now_ms()
+        + Event.DEFAULT_EXPIRATION_SECONDS * 1000
+    )
+
+    DEFAULT_EXPIRATION_SECONDS: ClassVar[int] = 60
 
     def __post_init__(self) -> None:
         # Backwards-compat shim: allow callers that passed legacy names via kwargs
@@ -99,6 +109,16 @@ class Event:
 
         if self.trace_id is not None and not isinstance(self.trace_id, str):
             raise EventFormatError("trace_id must be a string when provided.")
+
+        if self.expires_at is not None and (
+            isinstance(self.expires_at, bool)
+            or not isinstance(self.expires_at, int)
+            or self.expires_at <= 0
+            or self.expires_at > 10_000_000_000_000
+        ):
+            raise EventFormatError(
+                "expires_at must be a valid millisecond Unix timestamp."
+            )
 
     @staticmethod
     def _now_ms() -> int:
@@ -136,16 +156,42 @@ class Event:
         event_data: dict[str, Any] | None = None,
         *,
         trace_id: str | None = None,
+        expires_in_seconds: int = DEFAULT_EXPIRATION_SECONDS,
     ) -> "Event":
+        """Create a new event and set its expiration relative to creation time.
+
+        Args:
+            event_type: Three-part event type name.
+            source: Identifier for the event-producing process or component.
+            event_data: Optional business payload; defaults to an empty mapping.
+            trace_id: Optional identifier shared by events in one trace.
+            expires_in_seconds: Time-to-live in seconds; defaults to 60.
+
+        Returns:
+            A new Event with a generated UUID, creation timestamp, and expiry.
+
+        Raises:
+            ValueError: If the expiration duration is not a non-negative integer.
+            EventFormatError: If the event type is invalid.
+        """
+        if (
+            isinstance(expires_in_seconds, bool)
+            or not isinstance(expires_in_seconds, int)
+            or expires_in_seconds < 0
+        ):
+            raise ValueError("expires_in_seconds must be a non-negative integer.")
+
         normalized_type = str(event_type)
         cls.validate_event_type(normalized_type)
+        timestamp = cls._now_ms()
         return cls(
             event_id=str(uuid.uuid4()),
             event_type=normalized_type,
             source=str(source),
-            timestamp=cls._now_ms(),
+            timestamp=timestamp,
             event_data=dict(event_data or {}),
             trace_id=trace_id,
+            expires_at=timestamp + expires_in_seconds * 1000,
         )
 
     @classmethod
@@ -165,6 +211,20 @@ class Event:
 
     @classmethod
     def from_envelope(cls, fields: dict[str, Any]) -> "Event":
+        """Deserialize a transport envelope, including its optional expiration.
+
+        Legacy envelopes without ``expires_at`` remain valid and do not expire
+        automatically.
+
+        Args:
+            fields: Canonical or legacy event-envelope fields.
+
+        Returns:
+            The corresponding Event instance.
+
+        Raises:
+            EventFormatError: If a required field or its value is invalid.
+        """
         if not isinstance(fields, dict):
             raise EventFormatError("envelope must be a dictionary.")
 
@@ -198,6 +258,22 @@ class Event:
         trace_id = fields.get("trace_id")
         if trace_id is not None and not isinstance(trace_id, str):
             raise EventFormatError("trace_id must be a string when present.")
+        raw_expires_at = fields.get("expires_at")
+        if isinstance(raw_expires_at, bool) or (
+            raw_expires_at is not None
+            and not isinstance(raw_expires_at, (str, int))
+        ):
+            raise EventFormatError(
+                f"expires_at must be a millisecond Unix timestamp: {raw_expires_at!r}"
+            )
+        try:
+            expires_at = (
+                int(raw_expires_at) if raw_expires_at is not None else None
+            )
+        except (TypeError, ValueError) as exc:
+            raise EventFormatError(
+                f"expires_at must be a millisecond Unix timestamp: {raw_expires_at!r}"
+            ) from exc
 
         # construct with canonical field names
         return cls(
@@ -207,6 +283,7 @@ class Event:
             timestamp=ts,
             event_data=payload,
             trace_id=trace_id,
+            expires_at=expires_at,
         )
 
     def to_envelope(self, *, wire_legacy: bool = False) -> dict[str, str]:
@@ -214,7 +291,7 @@ class Event:
 
         By default produces canonical keys (event_id/event_type/timestamp/event_data).
         If wire_legacy=True it will produce legacy transport keys (id/type/ts/data) to
-        remain compatible with existing systems.
+        remain compatible with existing systems. ``expires_at`` is included when set.
         """
         if wire_legacy:
             envelope: dict[str, str] = {
@@ -226,6 +303,8 @@ class Event:
             }
             if self.trace_id:
                 envelope["trace_id"] = self.trace_id
+            if self.expires_at is not None:
+                envelope["expires_at"] = str(self.expires_at)
             return envelope
 
         envelope: dict[str, str] = {
@@ -237,9 +316,12 @@ class Event:
         }
         if self.trace_id:
             envelope["trace_id"] = self.trace_id
+        if self.expires_at is not None:
+            envelope["expires_at"] = str(self.expires_at)
         return envelope
 
     def to_json(self, *, wire_legacy: bool = False) -> str:
+        """Serialize the event to JSON, preserving its expiry timestamp."""
         if wire_legacy:
             payload = {
                 "id": self.event_id,
@@ -248,6 +330,7 @@ class Event:
                 "ts": self.timestamp,
                 "data": self.event_data,
                 "trace_id": self.trace_id,
+                "expires_at": self.expires_at,
             }
         else:
             payload = {
@@ -257,6 +340,7 @@ class Event:
                 "timestamp": self.timestamp,
                 "event_data": self.event_data,
                 "trace_id": self.trace_id,
+                "expires_at": self.expires_at,
             }
         return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
 
