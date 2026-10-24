@@ -21,6 +21,9 @@ services:
     # 引入外部环境变量
     env_file:
       - .env
+    environment:
+      REDIS_USERNAME: ${REDIS_USERNAME:?Set REDIS_USERNAME in the Compose environment}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in the Compose environment}
 
 networks:
   mysql_network:
