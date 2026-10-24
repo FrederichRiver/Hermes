@@ -17,7 +17,7 @@ services:
       - DJANGO_STATIC_ROOT=/var/www/html/static
       - DJANGO_MEDIA_ROOT=/var/www/html/media
     env_file:
-      - .env
+      - .env.secrets
     networks:
       mysql_network:
         ipv4_address: 172.18.0.3

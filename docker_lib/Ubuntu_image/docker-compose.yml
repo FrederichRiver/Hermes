@@ -18,8 +18,8 @@ services:
     # 引入外部环境变量
     env_file:
       - .env
+      - .env.secrets
     environment:
-      PYTHONPATH: /opt/application/src/utils/src:/opt/application/src/website_agent/src
       REDIS_URL: ${REDIS_URL:-redis://172.18.0.7:6379/0}
       REDIS_USERNAME: ${REDIS_USERNAME:?Set REDIS_USERNAME in the Compose environment}
       REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in the Compose environment}
