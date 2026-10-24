@@ -11,9 +11,14 @@ case "$REDIS_USERNAME" in
     ;;
 esac
 
+if [ "$REDIS_USERNAME" = "default" ]; then
+  echo "REDIS_USERNAME must not be the reserved default user." >&2
+  exit 1
+fi
+
 password_hash="$(printf '%s' "$REDIS_PASSWORD" | sha256sum | cut -d ' ' -f 1)"
 acl_file="/run/redis-users.acl"
-printf 'user %s on #%s ~* +@all\n' "$REDIS_USERNAME" "$password_hash" > "$acl_file"
+printf 'user %s on #%s ~* &event:* +@all\n' "$REDIS_USERNAME" "$password_hash" > "$acl_file"
 chmod 0600 "$acl_file"
 
 exec "$@"
