@@ -1,11 +1,8 @@
 import time
-import logging
-from typing import Optional, Dict, Any
-
-import time
-import logging
 import json
 from typing import Optional, Dict, Any
+
+from .logging import get_logger
 
 try:
     import httpx
@@ -16,7 +13,7 @@ except Exception:
     import urllib.parse as _urllib_parse
     _HAS_HTTPX = False
 
-logger = logging.getLogger("src.http_client")
+logger = get_logger(__name__)
 
 
 class SimpleHttpClient:
@@ -74,10 +71,12 @@ class SimpleHttpClient:
             except Exception as e:
                 last_exc = e
                 wait = self.backoff * (2 ** attempt)
-                logger.warning("HTTP GET failed (attempt %d/%d) %s: %s; retrying in %.1fs",
-                               attempt + 1, self.retries, url, e, wait)
+                logger.warning(
+                    f"HTTP GET failed (attempt {attempt + 1}/{self.retries}) "
+                    f"{url}: {e}; retrying in {wait:.1f}s"
+                )
                 time.sleep(wait)
-        logger.error("HTTP GET giving up after %d attempts: %s", self.retries, url)
+        logger.error(f"HTTP GET giving up after {self.retries} attempts: {url}")
         raise last_exc
 
     def get_json(self, url: str, params: Optional[Dict[str, Any]] = None,
