@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-import logging
 import urllib.parse
 from urllib.robotparser import RobotFileParser
 
-logger = logging.getLogger(__name__)
+from utils.logging import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class RobotsChecker:
@@ -24,7 +26,9 @@ class RobotsChecker:
         try:
             parser.read()
         except Exception:  # pragma: no cover - network failure should be conservative
-            logger.warning("robots.txt unavailable or unreadable for %s; denying by default.", domain)
+            logger.warning(
+                f"robots.txt unavailable or unreadable for {domain}; denying by default."
+            )
             parser = RobotFileParser()
             parser.parse([])
         self._cache[domain] = parser

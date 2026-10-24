@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
 from typing import Any
 
 import requests
 from requests.adapters import HTTPAdapter
+
+from .user_agent import DEFAULT_USER_AGENTS
 
 
 class HttpRetryableError(RuntimeError):
@@ -14,14 +15,6 @@ class HttpRetryableError(RuntimeError):
 
 class HttpFatalError(RuntimeError):
     """Non-retryable HTTP error or robots-disallowed fetch."""
-
-
-@dataclass(slots=True)
-class RequestSpec:
-    method: str
-    url: str
-    params: dict[str, Any] = field(default_factory=dict)
-    headers: dict[str, str] = field(default_factory=dict)
 
 
 class TokenBucket:
@@ -38,7 +31,9 @@ class TokenBucket:
             now = time.monotonic()
             elapsed = max(now - self.updated_at, 0.0)
             self.updated_at = now
-            self.tokens = min(self.capacity, self.tokens + elapsed * self.rate_per_second)
+            self.tokens = min(
+                self.capacity, self.tokens + elapsed * self.rate_per_second
+            )
             if self.tokens >= 1.0:
                 self.tokens -= 1.0
                 return
@@ -81,14 +76,8 @@ class HttpClient:
         self._retry_status_codes = frozenset(
             status_codes if status_codes is not None else (429, 500, 502, 503, 504)
         )
-        self._retry_methods = frozenset(
-            {"GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"}
-        )
         self._token_bucket = TokenBucket(rate)
-        self._user_agents = user_agents or [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-        ]
+        self._user_agents = user_agents or list(DEFAULT_USER_AGENTS)
         self._ua_index = 0
         adapter = HTTPAdapter(
             max_retries=0,
@@ -124,43 +113,54 @@ class HttpClient:
         self._ua_index += 1
         return ua
 
-    def _do_request(
+    def get(
         self,
-        req: RequestSpec,
-        *,
-        data: Any = None,
-        json: Any = None,
-        timeout: float | None = None,
-        request_options: dict[str, Any] | None = None,
+        url: str,
+        params: dict[str, Any] | None = None,
+        **request_options: Any,
     ) -> requests.Response:
-        headers = dict(req.headers)
-        has_user_agent = any(
-            key.lower() == "user-agent"
-            for key in headers
-        ) or self._has_default_user_agent
+        """Send a GET request with rate limiting, retries, and encoding handling."""
+        timeout = request_options.pop("timeout", None)
+        if timeout is None:
+            timeout = self._timeout
+        headers = dict(request_options.pop("headers", None) or {})
+        has_user_agent = (
+            any(key.lower() == "user-agent" for key in headers)
+            or self._has_default_user_agent
+        )
         if not has_user_agent:
             headers["User-Agent"] = self._pick_ua()
-        response = self._session.request(
-            req.method,
-            req.url,
-            params=req.params,
-            headers=headers,
-            data=data,
-            json=json,
-            timeout=self._timeout if timeout is None else timeout,
-            **(request_options or {}),
-        )
-        self._normalize_response_encoding(response)
-        if (
-            response.status_code in self._retry_status_codes
-            and req.method in self._retry_methods
-        ):
-            raise HttpRetryableError(
-                f"Retryable status {response.status_code} for {req.url}"
-            )
-        if response.status_code >= 400:
-            raise HttpFatalError(f"Fatal status {response.status_code} for {req.url}")
-        return response
+        for attempt in range(self._max_retry + 1):
+            try:
+                self._acquire_token()
+                response = self._session.get(
+                    url,
+                    params=params,
+                    headers=headers,
+                    timeout=timeout,
+                    **request_options,
+                )
+                self._normalize_response_encoding(response)
+                if response.status_code in self._retry_status_codes:
+                    raise HttpRetryableError(
+                        f"Retryable status {response.status_code} for {url}"
+                    )
+                if response.status_code >= 400:
+                    raise HttpFatalError(
+                        f"Fatal status {response.status_code} for {url}"
+                    )
+                return response
+            except HttpRetryableError as exc:
+                if attempt == self._max_retry:
+                    raise HttpFatalError(
+                        f"Request failed after retries for {url}"
+                    ) from exc
+                time.sleep(self._backoff * (2**attempt))
+            except requests.RequestException as exc:
+                if attempt == self._max_retry:
+                    raise HttpFatalError(f"Network error for {url}") from exc
+                time.sleep(self._backoff * (2**attempt))
+        raise HttpFatalError(f"Unknown request failure for {url}")
 
     @staticmethod
     def _normalize_response_encoding(response: requests.Response) -> None:
@@ -181,53 +181,6 @@ class HttpClient:
                 return
             response.encoding = "utf-8"
 
-    def request(
-        self,
-        method: str,
-        url: str,
-        *,
-        params: dict[str, Any] | None = None,
-        data: Any = None,
-        json: Any = None,
-        headers: dict[str, str] | None = None,
-        timeout: float | None = None,
-        **request_options: Any,
-    ) -> requests.Response:
-        req = RequestSpec(
-            method=method.upper(),
-            url=url,
-            params=params or {},
-            headers=headers or {},
-        )
-        for attempt in range(self._max_retry + 1):
-            try:
-                self._acquire_token()
-                return self._do_request(
-                    req,
-                    data=data,
-                    json=json,
-                    timeout=timeout,
-                    request_options=request_options,
-                )
-            except HttpRetryableError as exc:
-                if attempt == self._max_retry:
-                    raise HttpFatalError(f"Request failed after retries for {url}") from exc
-                time.sleep(self._backoff * (2 ** attempt))
-            except requests.RequestException as exc:
-                if attempt == self._max_retry:
-                    raise HttpFatalError(f"Network error for {url}") from exc
-                time.sleep(self._backoff * (2 ** attempt))
-        raise HttpFatalError(f"Unknown request failure for {url}")
-
-    def get(
-        self,
-        url: str,
-        params: dict[str, Any] | None = None,
-        **request_options: Any,
-    ) -> requests.Response:
-        """Send a GET request through the shared retry and rate-limit policy."""
-        return self.request("GET", url, params=params, **request_options)
-
     def post(
         self,
         url: str,
@@ -235,14 +188,50 @@ class HttpClient:
         json: Any = None,
         **request_options: Any,
     ) -> requests.Response:
-        """Send a POST request through the shared retry and rate-limit policy."""
-        return self.request(
-            "POST",
-            url,
-            data=data,
-            json=json,
-            **request_options,
-        )
+        """POST request placeholder; implementation will be added later."""
+        raise NotImplementedError("POST requests are not implemented yet.")
+
+    def put(
+        self,
+        url: str,
+        data: Any = None,
+        **request_options: Any,
+    ) -> requests.Response:
+        """PUT request placeholder; implementation will be added later."""
+        raise NotImplementedError("PUT requests are not implemented yet.")
+
+    def patch(
+        self,
+        url: str,
+        data: Any = None,
+        **request_options: Any,
+    ) -> requests.Response:
+        """PATCH request placeholder; implementation will be added later."""
+        raise NotImplementedError("PATCH requests are not implemented yet.")
+
+    def delete(
+        self,
+        url: str,
+        **request_options: Any,
+    ) -> requests.Response:
+        """DELETE request placeholder; implementation will be added later."""
+        raise NotImplementedError("DELETE requests are not implemented yet.")
+
+    def head(
+        self,
+        url: str,
+        **request_options: Any,
+    ) -> requests.Response:
+        """HEAD request placeholder; implementation will be added later."""
+        raise NotImplementedError("HEAD requests are not implemented yet.")
+
+    def options(
+        self,
+        url: str,
+        **request_options: Any,
+    ) -> requests.Response:
+        """OPTIONS request placeholder; implementation will be added later."""
+        raise NotImplementedError("OPTIONS requests are not implemented yet.")
 
     def get_text(
         self,
@@ -272,4 +261,4 @@ class HttpClient:
         self.close()
 
 
-__all__ = ["HttpClient", "HttpFatalError", "HttpRetryableError", "RequestSpec", "TokenBucket"]
+__all__ = ["HttpClient", "HttpFatalError", "HttpRetryableError", "TokenBucket"]
