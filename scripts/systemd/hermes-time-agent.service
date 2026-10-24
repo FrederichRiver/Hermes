@@ -1,0 +1,21 @@
+[Unit]
+Description=Hermes TimeAgent service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/application
+EnvironmentFile=/etc/hermes/redis.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/opt/application/src/utils/src
+ExecStart=/opt/application/venv/bin/python3 /opt/application/src/time_agent_service.py
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

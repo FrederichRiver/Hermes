@@ -1,0 +1,23 @@
+[Unit]
+Description=Hermes EventEngine service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/application
+EnvironmentFile=/etc/hermes/event-service.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/opt/application/src/utils/src
+ExecStart=/opt/application/venv/bin/python3 /opt/application/src/event_service.py
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
