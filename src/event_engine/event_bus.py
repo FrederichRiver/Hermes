@@ -3,14 +3,14 @@
 from collections import defaultdict
 from collections.abc import Callable, Iterator, Mapping
 from datetime import date
-import logging
 import threading
 from typing import Protocol
 
 from .event import Event
+from utils.logging import get_logger
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class EventBus(Protocol):
@@ -18,6 +18,13 @@ class EventBus(Protocol):
 
     def publish(self, event: Event) -> None:
         """Publish an event to the notification channel."""
+
+    def xadd(
+        self,
+        stream_name: str,
+        fields: Mapping[str, str | bytes | int | float],
+    ) -> str | bytes:
+        """Append fields to a named stream and return the generated entry ID."""
 
     def enqueue(self, queue_name: str, event: Event) -> None:
         """Append a durable task event to a named queue."""
@@ -59,6 +66,13 @@ class RedisClient(Protocol):
 
     def lpush(self, key: str, value: str) -> int:
         """Push a durable message onto a Redis List."""
+
+    def xadd(
+        self,
+        name: str,
+        fields: Mapping[str, str | bytes | int | float],
+    ) -> str | bytes:
+        """Append fields to a Redis Stream and return the generated entry ID."""
 
     def rpush(self, key: str, value: str) -> int:
         """Append a serialized event to a Redis List."""
@@ -103,6 +117,9 @@ class InMemoryEventBus:
         """Initialize empty notification handlers and durable queues."""
         self.published_events: list[Event] = []
         self.queues: dict[str, list[Event]] = defaultdict(list)
+        self.streams: dict[
+            str, list[tuple[str, dict[str, str | bytes | int | float]]]
+        ] = defaultdict(list)
         self._handlers: dict[str, list[Callable[[Event], None]]] = defaultdict(list)
 
     def publish(self, event: Event) -> None:
@@ -114,6 +131,17 @@ class InMemoryEventBus:
     def enqueue(self, queue_name: str, event: Event) -> None:
         """Append an event to an in-memory durable-task queue."""
         self.queues[_queue_key(queue_name)].append(event)
+
+    def xadd(
+        self,
+        stream_name: str,
+        fields: Mapping[str, str | bytes | int | float],
+    ) -> str:
+        """Append fields to an in-memory stream and return a synthetic entry ID."""
+        entries = self.streams[stream_name]
+        entry_id = f"{len(entries) + 1}-0"
+        entries.append((entry_id, dict(fields)))
+        return entry_id
 
     def subscribe(
         self,
@@ -140,6 +168,14 @@ class RedisEventBus:
         """Publish a notification on ``event:<event_type>``."""
         self._redis.publish(f"event:{event.event_type}", event.to_json())
 
+    def xadd(
+        self,
+        stream_name: str,
+        fields: Mapping[str, str | bytes | int | float],
+    ) -> str | bytes:
+        """Append fields to a Redis Stream and return the generated entry ID."""
+        return self._redis.xadd(stream_name, fields)
+
     def enqueue(self, queue_name: str, event: Event) -> None:
         """Persist a task event in ``queue:<queue_name>``."""
         self._redis.lpush(_queue_key(queue_name), event.to_json())
@@ -151,7 +187,29 @@ class RedisEventBus:
     ) -> None:
         """Register a handler for use by the Redis listener integration."""
         Event.validate_event_type(event_type)
-        self._handlers[event_type].append(handler)
+        handlers = self._handlers[event_type]
+        handlers.append(handler)
+        # If we are already listening on Redis, keep the subscription up-to-date.
+        # Otherwise, start the background listener immediately so a newly registered
+        # consumer does not miss messages that arrive before the app explicitly calls
+        # start_listener().
+        try:
+            if (
+                self._listener_thread is not None
+                and self._listener_thread.is_alive()
+            ):
+                if self._pubsub is None:
+                    raise RuntimeError(
+                        "Redis event listener has no Pub/Sub connection."
+                    )
+                self._pubsub.subscribe(f"event:{event_type}")
+            else:
+                self.start_listener()
+        except Exception:
+            handlers.pop()
+            if not handlers:
+                del self._handlers[event_type]
+            raise
 
     def dispatch(self, serialized_event: str | bytes) -> None:
         """Dispatch one Redis-delivered event to local registered handlers."""
@@ -161,9 +219,8 @@ class RedisEventBus:
                 handler(event)
             except Exception:
                 logger.exception(
-                    "Event handler failed for event_type=%s trace_id=%s",
-                    event.event_type,
-                    event.trace_id,
+                    f"Event handler failed for event_type={event.event_type} "
+                    f"trace_id={event.trace_id}"
                 )
 
     def start_listener(self) -> None:
@@ -175,14 +232,37 @@ class RedisEventBus:
 
         channels = [f"event:{event_type}" for event_type in self._handlers]
         self._listener_stop.clear()
-        self._pubsub = self._redis.pubsub()
-        self._pubsub.subscribe(*channels)
-        self._listener_thread = threading.Thread(
+        pubsub = self._redis.pubsub()
+        try:
+            pubsub.subscribe(*channels)
+        except Exception:
+            try:
+                pubsub.close()
+            except Exception:
+                logger.exception(
+                    "Failed to close Redis Pub/Sub after subscribe failure."
+                )
+            raise
+
+        listener_thread = threading.Thread(
             target=self._listen,
             name="hermes-redis-event-listener",
             daemon=True,
         )
-        self._listener_thread.start()
+        self._pubsub = pubsub
+        self._listener_thread = listener_thread
+        try:
+            listener_thread.start()
+        except Exception:
+            self._pubsub = None
+            self._listener_thread = None
+            try:
+                pubsub.close()
+            except Exception:
+                logger.exception(
+                    "Failed to close Redis Pub/Sub after listener startup failure."
+                )
+            raise
 
     def stop_listener(self) -> None:
         """Stop the Redis listener without blocking application shutdown."""
