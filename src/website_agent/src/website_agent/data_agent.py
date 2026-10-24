@@ -1,6 +1,5 @@
 # DataAgent 数据Agent基础实现
 import os
-import logging
 from typing import List
 
 
@@ -20,6 +19,8 @@ class DataAgent:
 
 # Module-level synchronous scraper functions for scheduler to call
 from website_agent.http_utils.client import HttpClient
+from website_agent.http_utils.user_agent import DATA_AGENT_USER_AGENT
+from utils.logging import get_logger
 from utils.parser import (
     extract_codes_from_text,
     parse_sse_html,
@@ -28,10 +29,10 @@ from utils.parser import (
     parse_szse_json,
 )
 
-logger = logging.getLogger("src.data_agent")
+logger = get_logger(__name__)
 # default http client for site scrapers
 _client = HttpClient(
-    base_headers={"User-Agent": "Hermes-DataAgent/1.0"},
+    base_headers={"User-Agent": DATA_AGENT_USER_AGENT},
     timeout=15.0,
     max_retry=3,
     backoff=0.5,
@@ -77,13 +78,13 @@ def _fetch_and_write(url: str, prefix: str, output_path: str) -> int:
             # fallback to generic regex
             codes = extract_codes_from_text(text, prefix)
         if not codes:
-            logger.warning("No codes extracted from %s", url)
+            logger.warning(f"No codes extracted from {url}")
         else:
             _write_codes_atomic(codes, output_path)
-            logger.info("Wrote %d codes to %s", len(codes), output_path)
+            logger.info(f"Wrote {len(codes)} codes to {output_path}")
         return len(codes)
     except Exception as e:
-        logger.exception("Failed fetching codes from %s: %s", url, e)
+        logger.exception(f"Failed fetching codes from {url}: {e}")
         raise
 
 
@@ -99,10 +100,10 @@ def fetch_sse_codes(output_path: str = "src/data/codes/shanghai.txt") -> int:
             codes = parse_sse_json(data)
             if codes:
                 _write_codes_atomic(codes, output_path)
-                logger.info("Wrote %d codes to %s via SSE API %s", len(codes), output_path, api)
+                logger.info(f"Wrote {len(codes)} codes to {output_path} via SSE API {api}")
                 return len(codes)
         except Exception:
-            logger.debug("SSE API endpoint failed: %s", api)
+            logger.debug(f"SSE API endpoint failed: {api}")
     # Fallback to HTML scraping
     return _fetch_and_write(_SSE_LIST_URL, "SH", output_path)
 
@@ -119,9 +120,9 @@ def fetch_szse_codes(output_path: str = "src/data/codes/shenzhen.txt") -> int:
             codes = parse_szse_json(data)
             if codes:
                 _write_codes_atomic(codes, output_path)
-                logger.info("Wrote %d codes to %s via SZSE API %s", len(codes), output_path, api)
+                logger.info(f"Wrote {len(codes)} codes to {output_path} via SZSE API {api}")
                 return len(codes)
         except Exception:
-            logger.debug("SZSE API endpoint failed: %s", api)
+            logger.debug(f"SZSE API endpoint failed: {api}")
     # Fallback to HTML scraping
     return _fetch_and_write(_SZSE_LIST_URL, "SZ", output_path)

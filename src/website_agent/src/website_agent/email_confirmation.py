@@ -1,3 +1,4 @@
+#!/opt/application/venv/bin/python3
 """Email-based two-way confirmation workflow for manually executed trades."""
 
 from __future__ import annotations
@@ -7,7 +8,7 @@ import email
 import html
 import imaplib
 import json
-import logging
+import os
 import re
 import secrets
 import smtplib
@@ -26,8 +27,17 @@ from threading import Event
 from typing import Literal
 from zoneinfo import ZoneInfo
 
+from utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
+
+
+def _required_environment_value(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise ValueError(f"Required environment variable {name} is not set.")
+    return value
 
 ConfirmationStatus = Literal["FILLED", "PARTIAL", "CANCELLED"]
 PlanStatus = Literal["PENDING", "CONFIRMED", "EXPIRED", "MANUAL"]
@@ -155,6 +165,22 @@ class SmtpSettings:
     recipient: str
     use_starttls: bool = True
 
+    @classmethod
+    def from_env(cls) -> SmtpSettings:
+        """Load SMTP settings from the process environment."""
+        use_starttls = os.environ.get("SMTP_USE_STARTTLS", "true").lower()
+        if use_starttls not in {"true", "false"}:
+            raise ValueError("SMTP_USE_STARTTLS must be 'true' or 'false'.")
+        return cls(
+            host=_required_environment_value("SMTP_HOST"),
+            port=int(os.environ.get("SMTP_PORT", "587")),
+            username=_required_environment_value("SMTP_USERNAME"),
+            password=_required_environment_value("SMTP_PASSWORD"),
+            sender=_required_environment_value("SMTP_SENDER"),
+            recipient=_required_environment_value("SMTP_RECIPIENT"),
+            use_starttls=use_starttls == "true",
+        )
+
 
 @dataclass(frozen=True)
 class ImapSettings:
@@ -165,6 +191,17 @@ class ImapSettings:
     username: str
     password: str
     mailbox: str = "INBOX"
+
+    @classmethod
+    def from_env(cls) -> ImapSettings:
+        """Load IMAP settings from the process environment."""
+        return cls(
+            host=_required_environment_value("IMAP_HOST"),
+            port=int(os.environ.get("IMAP_PORT", "993")),
+            username=_required_environment_value("IMAP_USERNAME"),
+            password=_required_environment_value("IMAP_PASSWORD"),
+            mailbox=os.environ.get("IMAP_MAILBOX", "INBOX"),
+        )
 
 
 class EmailConfirmationRepository:
@@ -869,7 +906,7 @@ class ImapConfirmationPoller:
             except (ConnectionError, imaplib.IMAP4.error, OSError) as exc:
                 now = datetime.now(timezone.utc)
                 disconnected_since = disconnected_since or now
-                logger.warning("IMAP confirmation polling failed: %s", exc)
+                logger.warning(f"IMAP confirmation polling failed: {exc}")
                 if (
                     self._alert_publisher is not None
                     and now - disconnected_since >= timedelta(minutes=30)

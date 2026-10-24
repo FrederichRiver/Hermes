@@ -1,3 +1,4 @@
+#!/opt/application/venv/bin/python3
 """CalendarAgent — lightweight calendar service.
 
 This module provides a small, dependency-free in-memory CalendarAgent suitable for
@@ -17,10 +18,12 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from pathlib import Path
 import json
-import logging
 from typing import Callable, Dict, List, Optional, Tuple, Any
 
-logger = logging.getLogger(__name__)
+from utils.logging import get_logger
+
+
+logger = get_logger(__name__)
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "calendar"
 
@@ -62,7 +65,9 @@ class CalendarAgent:
             with path.open("r", encoding="utf-8") as f:
                 self.markets[market] = json.load(f)
         except json.JSONDecodeError as exc:
-            logger.exception("Failed to parse calendar JSON for market=%s at %s", market, path)
+            logger.exception(
+                f"Failed to parse calendar JSON for market={market} at {path}"
+            )
             raise ValueError("invalid calendar JSON") from exc
 
     def ensure_market(self, market: str) -> None:
@@ -141,7 +146,7 @@ class CalendarAgent:
             try:
                 parsed = date.fromisoformat(d)
             except ValueError:
-                logger.warning("Ignoring invalid date format in holidays: %s", d)
+                logger.warning(f"Ignoring invalid date format in holidays: {d}")
                 continue
             if start <= parsed <= end:
                 out.append({"date": d, **(meta or {})})
@@ -165,7 +170,7 @@ class CalendarAgent:
             try:
                 cb(event)
             except Exception as exc:  # pragma: no cover - defensive logging
-                logger.exception("Subscriber callback failed: %s", exc)
+                logger.exception(f"Subscriber callback failed: {exc}")
 
     def update_market_data(self, market: str, data: Dict[str, Any], source: Optional[str] = None) -> None:
         """Atomically update market calendar data and persist to disk.
@@ -182,7 +187,9 @@ class CalendarAgent:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             tmp.replace(path)
         except OSError as exc:
-            logger.exception("Failed to persist calendar data for market=%s: %s", market, exc)
+            logger.exception(
+                f"Failed to persist calendar data for market={market}: {exc}"
+            )
             raise TransientError("failed to persist calendar data") from exc
         # update memory and notify
         self.markets[market] = data
@@ -200,4 +207,6 @@ if __name__ == "__main__":  # pragma: no cover - manual run helper
         logger.exception("Unexpected error loading sample calendar data")
     else:
         today = date.today()
-        logger.info("today %s is trading day? %s", today, ca.is_trading_day("china", today))
+        logger.info(
+            f"today {today} is trading day? {ca.is_trading_day('china', today)}"
+        )

@@ -1,3 +1,4 @@
+#!/opt/application/venv/bin/python3
 """SSE spider service
 
 Fetches SSE listings periodically and publishes events to a Redis-backed EventBus.
@@ -8,7 +9,7 @@ Configuration via environment variables:
 - REDIS_URL (default redis://redis:6379/0)
 - REDIS_STREAM_NAME (default market:listings:sse)
 
-The service registers SseSiteClient with WebsiteAgent, fetches the SSE list in
+The service registers SiteSSE with WebsiteAgent, fetches the SSE list in
 response to a task, then publishes the completed result to Redis Pub/Sub and a
 durable stream.
 """
@@ -17,12 +18,12 @@ from __future__ import annotations
 import os
 import time
 import json
-import logging
 
 from event_engine.event import Event
 from event_engine.event_bus import RedisEventBus
+from utils.logging import configure_logging, get_logger
 from website_agent.website.agent import WebsiteAgent
-from website_agent.website.site_sse_module import SseSiteClient
+from website_agent.website.site_sse import SiteSSE
 
 # Lazy import redis to avoid hard requirement during unit tests
 try:
@@ -30,9 +31,8 @@ try:
 except Exception:  # pragma: no cover - runtime dependency
     redis = None
 
-logger = logging.getLogger("sse_spider_service")
+logger = get_logger(__name__)
 
-SSE_LIST_URL = os.environ.get("SSE_LIST_URL", "https://query.sse.com.cn/sseQuery/commonQuery.do")
 FETCH_INTERVAL = int(os.environ.get("SSE_FETCH_INTERVAL_SECONDS", "3600"))
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 REDIS_STREAM = os.environ.get("REDIS_STREAM_NAME", "market:listings:sse")
@@ -44,7 +44,12 @@ class RedisClientWrapper:
     def __init__(self, url: str):
         if redis is None:
             raise RuntimeError("redis package is required for RedisEventBus. Install redis-py.")
-        self._client = redis.from_url(url, decode_responses=False)
+        self._client = redis.from_url(
+            url,
+            decode_responses=False,
+            username=os.environ["REDIS_USERNAME"],
+            password=os.environ["REDIS_PASSWORD"],
+        )
 
     def publish(self, channel: str, message: str) -> int:
         return self._client.publish(channel, message)
@@ -92,7 +97,7 @@ def publish_records_to_redis(records, redis_client_url: str, stream_name: str) -
         try:
             bus.publish(ev)
         except Exception:
-            logger.exception("Failed to publish pubsub for event %s", ev.event_id)
+            logger.exception(f"Failed to publish pubsub for event {ev.event_id}")
         # Append to stream for durable consumers
         try:
             fields = {
@@ -104,7 +109,9 @@ def publish_records_to_redis(records, redis_client_url: str, stream_name: str) -
             }
             client.xadd(stream_name, fields)
         except Exception:
-            logger.exception("Failed to xadd event %s to stream %s", ev.event_id, stream_name)
+            logger.exception(
+                f"Failed to xadd event {ev.event_id} to stream {stream_name}"
+            )
         count += 1
     return count
 
@@ -131,14 +138,14 @@ def run_once_and_publish() -> int:
             published_rows = int(event.event_data.get("rows_count", 0))
 
     agent = WebsiteAgent(publisher=publish_event)
-    agent.register(SseSiteClient())
+    agent.register(SiteSSE())
     request_event = Event.create(
         "data.fetch.requested",
         "sse_spider",
         {
             "task": {
                 "task_type": "symbol_list",
-                "params": {"url": SSE_LIST_URL},
+                "params": {},
             }
         },
     )
@@ -147,12 +154,15 @@ def run_once_and_publish() -> int:
     finally:
         agent.close()
 
-    logger.info("Published %d SSE stock records to Redis", published_rows)
+    logger.info(f"Published {published_rows} SSE stock records to Redis")
     return published_rows
 
 
 def main_loop():
-    logger.info("Starting SSE spider service. Redis=%s stream=%s interval=%s", REDIS_URL, REDIS_STREAM, FETCH_INTERVAL)
+    logger.info(
+        f"Starting SSE spider service. stream={REDIS_STREAM} "
+        f"interval={FETCH_INTERVAL}"
+    )
     while True:
         try:
             run_once_and_publish()
@@ -162,5 +172,5 @@ def main_loop():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
+    configure_logging()
     main_loop()
